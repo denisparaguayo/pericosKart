@@ -149,7 +149,7 @@ export const races: RaceResult[] = [
 		id: '2025-r1-kartodromo-nacional',
 		round: 1,
 		date: '2025-11-24',
-		track: 'Kart Super',
+		track: 'karting Club Paraguayo "KCP" ',
 		layout: 'Oficial',
 		fastestLap: {
 			driverId: 'fede-crichi',
