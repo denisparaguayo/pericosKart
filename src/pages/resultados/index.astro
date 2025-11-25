@@ -1,0 +1,107 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import { races, getDriverById } from '../../lib/data';
+
+const sortedRaces = [...races].sort(
+	(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+);
+---
+
+<MainLayout title="Resultados · Kart Amateur">
+	<section class="mb-6">
+		<h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+			Resultados & Podios
+		</h1>
+		<p class="mt-2 text-sm text-slate-300">
+			Histórico de fechas, podios y vueltas rápidas. Morado siempre marca la
+			Fastest Lap de la jornada.
+		</p>
+	</section>
+
+	<section class="space-y-4">
+		{
+			sortedRaces.map((race) => {
+				const fastestDriver = getDriverById(race.fastestLap.driverId);
+				return (
+					<article class="overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19]">
+						<div class="border-b border-slate-800/80 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-4 py-3">
+							<div class="flex flex-wrap items-center justify-between gap-2">
+								<div>
+									<p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+										Ronda {race.round}
+									</p>
+									<p class="text-sm font-medium text-slate-100">{race.track}</p>
+								</div>
+								<div class="text-right text-xs text-slate-400">
+									<p>
+										{new Date(race.date).toLocaleDateString('es-PY', {
+											day: '2-digit',
+											month: 'short',
+											year: 'numeric',
+										})}
+									</p>
+									{race.layout && <p>Layout: {race.layout}</p>}
+								</div>
+							</div>
+						</div>
+
+						<div class="grid gap-4 p-4 sm:grid-cols-[2fr,1.4fr]">
+							{/* Podio */}
+							<div>
+								<p class="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+									Podio
+								</p>
+								<div class="grid gap-2 sm:grid-cols-3">
+									{race.podium.map((p) => {
+										const d = getDriverById(p.driverId);
+										if (!d) return null;
+										return (
+											<div class="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-3 text-xs">
+												<p class="flex items-center justify-between text-[11px] text-slate-400">
+													<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold">
+														{p.position}
+													</span>
+													<span class="font-mono text-[10px] text-slate-500">
+														#{d.number}
+													</span>
+												</p>
+												<p class="mt-1 text-xs font-semibold text-slate-100">
+													{d.name}
+												</p>
+												<p class="text-[11px] text-slate-400">{d.team}</p>
+											</div>
+										);
+									})}
+								</div>
+							</div>
+
+							{/* Fastest Lap de la fecha */}
+							{fastestDriver && (
+								<div class="relative overflow-hidden rounded-lg border border-purple-500/80 bg-gradient-to-br from-purple-900/70 via-fuchsia-900/40 to-slate-950 p-[1px] shadow-[0_0_22px_rgba(168,85,247,0.35)]">
+									<div class="rounded-[9px] bg-[#080513]/95 p-3 text-xs">
+										<p class="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-purple-300">
+											<span class="inline-flex h-2 w-2 animate-pulse rounded-full bg-purple-400" />
+											Fastest Lap
+										</p>
+										<p class="mt-1 font-semibold text-slate-50">
+											{fastestDriver.name}
+											<span class="ml-1 text-[10px] text-slate-400">
+												#{fastestDriver.number}
+											</span>
+										</p>
+										<p class="mt-1 font-mono text-lg font-semibold text-purple-300">
+											{race.fastestLap.time}
+										</p>
+										<p class="mt-1 text-[11px] text-slate-400">
+											{fastestDriver.team}
+										</p>
+									</div>
+								</div>
+							)}
+						</div>
+					</article>
+				);
+			})
+		}
+	</section>
+</MainLayout>

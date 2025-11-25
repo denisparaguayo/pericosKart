@@ -1,0 +1,98 @@
+---
+//importa el global css
+import '../styles/global.css';
+const {
+	title = 'Kart Amateur League',
+	description = 'Liga amateur de karting',
+} = Astro.props;
+---
+
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+	</head>
+	<body class="bg-[#050511] text-slate-100 antialiased">
+		<header class="border-b border-slate-800/70 bg-[#0b0b19]/90 backdrop-blur">
+			<div
+				class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+				<a href="/" class="flex items-center gap-3">
+					<div
+						class="flex h-9 w-9 items-center justify-center rounded-md bg-gradient-to-br from-fuchsia-600 to-purple-500 text-xs font-bold tracking-tight">
+						PK
+					</div>
+					<div class="leading-tight">
+						<p class="text-sm font-semibold tracking-wide uppercase">
+							Pericos Kart
+						</p>
+						<p class="text-xs text-slate-400">Friends Racing League</p>
+					</div>
+				</a>
+
+				{/* NAV DESKTOP */}
+				<nav
+					class="hidden items-center gap-6 text-sm font-medium text-slate-200 sm:flex">
+					<a href="/" class="hover:text-fuchsia-400 transition-colors">Inicio</a
+					>
+					<a
+						href="/resultados"
+						class="hover:text-fuchsia-400 transition-colors">
+						Resultados
+					</a>
+					<a href="/galeria" class="hover:text-fuchsia-400 transition-colors">
+						Galería
+					</a>
+					<a href="#pilotos" class="hover:text-fuchsia-400 transition-colors">
+						Pilotos
+					</a>
+				</nav>
+
+				{/* NAV MOBILE con <details> (sin JS) */}
+				<details class="relative sm:hidden">
+					<summary
+						class="flex cursor-pointer items-center rounded-md border border-slate-700 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-200">
+						Menú
+						<span
+							class="ml-2 inline-block h-3 w-3 border-b border-r border-slate-300 rotate-45 translate-y-[-2px]"
+						></span>
+					</summary>
+					<div
+						class="absolute right-0 mt-2 w-40 rounded-lg border border-slate-700 bg-[#0b0b19] p-2 text-sm shadow-lg">
+						<a href="/" class="block rounded px-2 py-1 hover:bg-slate-800/80">
+							Inicio
+						</a>
+						<a
+							href="/resultados"
+							class="mt-1 block rounded px-2 py-1 hover:bg-slate-800/80">
+							Resultados
+						</a>
+						<a
+							href="/galeria"
+							class="mt-1 block rounded px-2 py-1 hover:bg-slate-800/80">
+							Galería
+						</a>
+						<a
+							href="#pilotos"
+							class="mt-1 block rounded px-2 py-1 hover:bg-slate-800/80">
+							Pilotos
+						</a>
+					</div>
+				</details>
+			</div>
+		</header>
+
+		<main class="mx-auto max-w-6xl px-4 pb-16 pt-8">
+			<slot />
+		</main>
+
+		<footer class="border-t border-slate-800/70 bg-[#050511]">
+			<div
+				class="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+				<p>© {new Date().getFullYear()} Kart Amateur League.</p>
+				<p>Estilo inspirado en la Fórmula 1 · Morado = Fastest Lap</p>
+			</div>
+		</footer>
+	</body>
+</html>

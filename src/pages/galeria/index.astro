@@ -1,0 +1,47 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+
+// por ahora estático, luego lo podés conectar a un CMS o subir más imágenes
+const photos = [
+	{
+		src: '/galeria/foto1.jpg',
+		alt: 'Largada de la carrera',
+		caption: 'Largada en el Kartódromo Nacional',
+	},
+	{
+		src: '/galeria/foto2.jpg',
+		alt: 'Pelea rueda a rueda',
+		caption: 'Pelea rueda a rueda en la curva 1',
+	},
+];
+---
+
+<MainLayout title="Galería · Kart Amateur">
+	<section class="mb-6">
+		<h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">Galería</h1>
+		<p class="mt-2 text-sm text-slate-300">
+			Momentos épicos de nuestras fechas: adelantamientos, podios, salidas de
+			pista y todo lo que pasa entre curva y curva.
+		</p>
+	</section>
+
+	<section class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+		{
+			photos.map((photo) => (
+				<figure class="group overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19]">
+					<div class="aspect-[4/3] overflow-hidden">
+						<img
+							src={photo.src}
+							alt={photo.alt}
+							loading="lazy"
+							class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+						/>
+					</div>
+					<figcaption class="px-3 py-2 text-xs text-slate-300">
+						{photo.caption}
+					</figcaption>
+				</figure>
+			))
+		}
+	</section>
+</MainLayout>

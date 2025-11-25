@@ -1,0 +1,160 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import { drivers, races, getDriverById } from '../../lib/data';
+
+// ✅ Necesario para rutas dinámicas estáticas
+export function getStaticPaths() {
+	return drivers.map((driver) => ({
+		params: {
+			slug: driver.id, // coincide con driver.id (ej: "denis-cantero")
+		},
+	}));
+}
+
+const { slug } = Astro.params;
+const driver = slug ? getDriverById(slug) : undefined;
+
+if (!driver) {
+	throw new Error('Piloto no encontrado');
+}
+
+// Filtrar resultados donde aparece este piloto (podio o fastest lap)
+const driverRaces = races.filter((race) => {
+	const onPodium = race.podium.some((p) => p.driverId === driver.id);
+	const isFastest = race.fastestLap.driverId === driver.id;
+	return onPodium || isFastest;
+});
+---
+
+<MainLayout title={`Piloto · ${driver.name}`}>
+	<section class="mb-6 grid gap-6 md:grid-cols-[2fr,1.5fr]">
+		<div class="flex gap-4">
+			{
+				driver.photo && (
+					<div class="hidden h-36 w-36 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 md:block">
+						<img
+							src={driver.photo}
+							alt={driver.name}
+							class="h-full w-full object-cover"
+						/>
+					</div>
+				)
+			}
+
+			<div>
+				<p
+					class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+					Piloto
+				</p>
+				<h1 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+					{driver.name}
+				</h1>
+				<p class="mt-1 text-sm text-slate-300">
+					#{driver.number} · {driver.team}
+				</p>
+				{
+					(driver.city || driver.country) && (
+						<p class="text-xs text-slate-400">
+							{driver.city && `${driver.city} · `}
+							{driver.country}
+						</p>
+					)
+				}
+				{driver.bio && <p class="mt-3 text-sm text-slate-300">{driver.bio}</p>}
+			</div>
+		</div>
+
+		<div
+			class="space-y-3 rounded-xl border border-slate-800 bg-[#0b0b19] p-4 text-xs">
+			<p
+				class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+				Ficha rápida
+			</p>
+			<div class="grid grid-cols-2 gap-2">
+				<div>
+					<p class="text-[11px] text-slate-400">Número</p>
+					<p class="text-sm font-semibold text-slate-100">
+						#{driver.number}
+					</p>
+				</div>
+				<div>
+					<p class="text-[11px] text-slate-400">Equipo</p>
+					<p class="text-sm text-slate-100">
+						{driver.team}
+					</p>
+				</div>
+				{
+					driver.helmetColor && (
+						<div>
+							<p class="text-[11px] text-slate-400">Casco</p>
+							<p class="text-sm text-slate-100">{driver.helmetColor}</p>
+						</div>
+					)
+				}
+			</div>
+			<p class="mt-2 text-[11px] text-slate-500">
+				* En el futuro podés agregar mejores posiciones, poles, etc.
+			</p>
+		</div>
+	</section>
+
+	<section>
+		<h2 class="mb-2 text-lg font-semibold tracking-tight sm:text-xl">
+			Resultados del piloto
+		</h2>
+		{
+			driverRaces.length === 0 ? (
+				<p class="text-sm text-slate-400">
+					Aún no hay resultados registrados para este piloto.
+				</p>
+			) : (
+				<div class="space-y-3 text-xs">
+					{driverRaces.map((race) => {
+						const podiumPos = race.podium.find((p) => p.driverId === driver.id);
+						const isFastest = race.fastestLap.driverId === driver.id;
+
+						return (
+							<article class="rounded-lg border border-slate-800 bg-[#0b0b19] p-3">
+								<div class="flex flex-wrap items-center justify-between gap-2">
+									<div>
+										<p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+											Ronda {race.round}
+										</p>
+										<p class="text-sm font-medium text-slate-100">
+											{race.track}
+										</p>
+									</div>
+									<p class="text-[11px] text-slate-400">
+										{new Date(race.date).toLocaleDateString('es-PY', {
+											day: '2-digit',
+											month: 'short',
+											year: 'numeric',
+										})}
+									</p>
+								</div>
+
+								<div class="mt-2 flex flex-wrap items-center gap-3">
+									{podiumPos && (
+										<span class="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-medium text-slate-200">
+											Posición final:{' '}
+											<span class="ml-1 font-semibold">
+												{podiumPos.position}°
+											</span>
+										</span>
+									)}
+
+									{isFastest && (
+										<span class="inline-flex items-center gap-1 rounded-full bg-purple-900/60 px-3 py-1 text-[11px] font-semibold text-purple-200">
+											<span class="h-2 w-2 rounded-full bg-purple-300" />
+											Fastest Lap · {race.fastestLap.time}
+										</span>
+									)}
+								</div>
+							</article>
+						);
+					})}
+				</div>
+			)
+		}
+	</section>
+</MainLayout>
