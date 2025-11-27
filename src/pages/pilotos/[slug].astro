@@ -2,11 +2,10 @@
 import MainLayout from '../../layouts/MainLayout.astro';
 import { drivers, races, getDriverById } from '../../lib/data';
 
-// ✅ Necesario para rutas dinámicas estáticas
 export function getStaticPaths() {
 	return drivers.map((driver) => ({
 		params: {
-			slug: driver.id, // coincide con driver.id (ej: "denis-cantero")
+			slug: driver.id,
 		},
 	}));
 }
@@ -18,7 +17,6 @@ if (!driver) {
 	throw new Error('Piloto no encontrado');
 }
 
-// Filtrar resultados donde aparece este piloto (podio o fastest lap)
 const driverRaces = races.filter((race) => {
 	const onPodium = race.podium.some((p) => p.driverId === driver.id);
 	const isFastest = race.fastestLap.driverId === driver.id;
@@ -26,18 +24,54 @@ const driverRaces = races.filter((race) => {
 });
 ---
 
-<MainLayout title={`Piloto · ${driver.name}`}>
+<head>
+	<meta property="og:title" content={`Piloto · ${driver.name}`} />
+	<meta
+		property="og:description"
+		content={driver.bio ?? 'Piloto de karting amateur'}
+	/>
+	<meta
+		property="og:image"
+		content={`https://pericos.netlify.app${driver.photo}`}
+	/>
+
+	<meta property="og:type" content="website" />
+	<meta
+		property="og:url"
+		content={`https://pericos.netlify.app/pilotos/${driver.id}`}
+	/>
+
+	<!-- Para WhatsApp -->
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={`Piloto · ${driver.name}`} />
+	<meta
+		name="twitter:image"
+		content={`https://pericos.netlify.app${driver.photo}`}
+	/>
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+</head>
+
+<MainLayout
+	title={`Piloto · ${driver.name}`}
+	description={driver.bio ?? 'Piloto de karting amateur.'}
+	image={driver.photo ?? '/pericos.jpg'}
+	path={`/pilotos/${driver.id}`}>
 	<section class="mb-6 grid gap-6 md:grid-cols-[2fr,1.5fr]">
 		<div class="flex gap-4">
 			{
 				driver.photo && (
-					<div class="hidden h-36 w-36 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 md:block">
+					<button
+						type="button"
+						id="driver-photo"
+						data-src={driver.photo}
+						class="h-24 w-24 md:h-36 md:w-36 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 flex-shrink-0">
 						<img
 							src={driver.photo}
 							alt={driver.name}
 							class="h-full w-full object-cover"
 						/>
-					</div>
+					</button>
 				)
 			}
 
@@ -49,17 +83,14 @@ const driverRaces = races.filter((race) => {
 				<h1 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
 					{driver.name}
 				</h1>
-				<p class="mt-1 text-sm text-slate-300">
-					#{driver.number} · {driver.team}
-				</p>
 				{
-					(driver.city || driver.country) && (
-						<p class="text-xs text-slate-400">
-							{driver.city && `${driver.city} · `}
-							{driver.country}
+					driver.number && driver.team && (
+						<p class="mt-1 text-sm text-slate-300">
+							#{driver.number} · {driver.team}
 						</p>
 					)
 				}
+				{driver.city && <p class="text-xs text-slate-400">{driver.city}</p>}
 				{driver.bio && <p class="mt-3 text-sm text-slate-300">{driver.bio}</p>}
 			</div>
 		</div>
@@ -70,31 +101,43 @@ const driverRaces = races.filter((race) => {
 				class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
 				Ficha rápida
 			</p>
+
 			<div class="grid grid-cols-2 gap-2">
-				<div>
-					<p class="text-[11px] text-slate-400">Número</p>
-					<p class="text-sm font-semibold text-slate-100">
-						#{driver.number}
-					</p>
-				</div>
-				<div>
-					<p class="text-[11px] text-slate-400">Equipo</p>
-					<p class="text-sm text-slate-100">
-						{driver.team}
-					</p>
-				</div>
+				{
+					driver.number && (
+						<div>
+							<p class="text-[11px] text-slate-400">Número</p>
+							<p class="text-sm font-semibold text-slate-100">
+								#{driver.number}
+							</p>
+						</div>
+					)
+				}
+				{
+					driver.team && (
+						<div>
+							<p class="text-[11px] text-slate-400">Team / Escudería</p>
+							<p class="text-sm text-slate-100">{driver.team}</p>
+						</div>
+					)
+				}
 				{
 					driver.helmetColor && (
 						<div>
-							<p class="text-[11px] text-slate-400">Casco</p>
+							<p class="text-[11px] text-slate-400">Colores</p>
 							<p class="text-sm text-slate-100">{driver.helmetColor}</p>
 						</div>
 					)
 				}
+				{
+					driver.city && (
+						<div>
+							<p class="text-[11px] text-slate-400">Ciudad</p>
+							<p class="text-sm text-slate-100">{driver.city}</p>
+						</div>
+					)
+				}
 			</div>
-			<p class="mt-2 text-[11px] text-slate-500">
-				* En el futuro podés agregar mejores posiciones, poles, etc.
-			</p>
 		</div>
 	</section>
 
@@ -102,6 +145,7 @@ const driverRaces = races.filter((race) => {
 		<h2 class="mb-2 text-lg font-semibold tracking-tight sm:text-xl">
 			Resultados del piloto
 		</h2>
+
 		{
 			driverRaces.length === 0 ? (
 				<p class="text-sm text-slate-400">
@@ -136,7 +180,7 @@ const driverRaces = races.filter((race) => {
 								<div class="mt-2 flex flex-wrap items-center gap-3">
 									{podiumPos && (
 										<span class="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-medium text-slate-200">
-											Posición final:{' '}
+											Posición final:
 											<span class="ml-1 font-semibold">
 												{podiumPos.position}°
 											</span>
@@ -157,4 +201,41 @@ const driverRaces = races.filter((race) => {
 			)
 		}
 	</section>
+
+	{/* MODAL */}
+	<div
+		id="lightbox-driver"
+		class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 p-4 cursor-zoom-out">
+		<img
+			id="lightbox-driver-img"
+			class="max-h-[90vh] max-w-[90vw] rounded-xl shadow-lg"
+			alt="Foto ampliada"
+		/>
+	</div>
+
+	<script>
+		if (typeof window !== 'undefined') {
+			window.addEventListener('DOMContentLoaded', () => {
+				const btn = document.getElementById('driver-photo');
+				const lb = document.getElementById('lightbox-driver');
+				const img = document.getElementById('lightbox-driver-img');
+
+				if (!btn || !lb || !img) return;
+
+				btn.addEventListener('click', () => {
+					const src = btn.getAttribute('data-src');
+					img.src = src;
+					lb.classList.remove('hidden');
+					lb.classList.add('flex');
+					document.body.classList.add('overflow-hidden');
+				});
+
+				lb.addEventListener('click', () => {
+					lb.classList.add('hidden');
+					lb.classList.remove('flex');
+					document.body.classList.remove('overflow-hidden');
+				});
+			});
+		}
+	</script>
 </MainLayout>

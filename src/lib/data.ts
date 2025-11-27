@@ -1,145 +1,91 @@
-export type Driver = {
-	id: string; // slug para la URL
-	name: string;
-	number: number;
-	team: string;
-	country: string;
-	city?: string;
-	helmetColor?: string;
-	photo?: string; // ruta en /public
-	bio?: string;
-};
-
 export type PodiumPosition = {
-	position: 1 | 2 | 3;
+	position: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 	driverId: string;
 };
 
-export type RaceResult = {
-	id: string;
-	round: number;
-	date: string; // "2025-11-10"
-	track: string;
-	layout?: string;
-	fastestLap: {
-		driverId: string;
-		time: string; // "00:52.345"
-	};
-	podium: PodiumPosition[];
+export type Driver = {
+	id: string; // slug para la URL
+	name: string;
+	number?: number;
+	team?: string;
+	country?: string;
+	city?: string;
+	helmetColor?: string;
+	photo?: string;
+	bio?: string;
 };
 
 export const drivers: Driver[] = [
+	// 👉 Datos completos que ya diste
+
+	{
+		id: 'eduardo-aguilera',
+		name: 'Eduardo Aguilera',
+		number: 666,
+		team: "E'A Racing",
+		city: 'Asunción',
+		helmetColor: 'Rojo',
+		photo: '/pilotos/edu-aguilera.jpg',
+		bio: 'Seco y Peligroso, en busca de la felicidad, rápido y furioso.',
+	},
 	{
 		id: 'denis-cantero',
-		name: 'Denis Cantero',
+		name: 'Denis R. Cantero',
 		number: 71,
 		team: 'Mbarete Racing',
-		country: 'Paraguay',
 		city: 'Asunción',
-		helmetColor: 'Morado y negro',
-		photo: '/pilotos/denis.jpg',
-		bio: 'Piloto amateur, obsesionado con bajar décimas en cada vuelta.',
+		helmetColor: 'Naranja y Negro',
+		photo: '/pilotos/denis-cantero.jpeg',
+		bio: 'Explosivo en las primeras vueltas, no le tiene miedo a nadie.',
 	},
+	{
+		id: 'pao-irala',
+		name: 'Pao Irala',
+		number: 33,
+		team: 'H&A',
+		city: 'Capiata-Caacupe',
+		helmetColor: 'Negro y Lila',
+		photo: '/pilotos/pao-irala.jpg',
+		bio: "You shouldn't speak without knowing.",
+	},
+
+	// 👉 Resto de los pilotos SOLO con nombre (sin inventar nada)
+
 	{
 		id: 'luciano-amarilla',
 		name: 'Luciano Amarilla',
-		number: 11,
-		team: 'Mbarete Racing',
-		country: 'Paraguay',
-		city: 'Asunción',
-		helmetColor: 'Morado y negro',
-		photo: '/pilotos/luciano.jpg',
-		bio: 'Consistente en ritmo de carrera, fuerte en stint largos.',
 	},
 	{
 		id: 'carlos-davalos',
 		name: 'Carlos Davalos',
-		number: 17,
-		team: 'Dávalos Motorsport',
-		country: 'Paraguay',
-		helmetColor: 'Negro y dorado',
-		photo: '/pilotos/carlos.jpg',
-		bio: 'Especialista en frenadas tardías y maniobras agresivas.',
 	},
 	{
 		id: 'fede-crichi',
 		name: 'Fede Crichi',
-		number: 22,
-		team: 'Moñai Driff',
-		country: 'Paraguay',
-		helmetColor: 'Azul y amarillo',
-		photo: '/pilotos/fede.jpg',
-		bio: 'Muy rápido en clasificación, siempre buscando la pole.',
 	},
 	{
 		id: 'frank-daniel',
 		name: 'Frank Daniel',
-		number: 27,
-		team: 'FD Performance',
-		country: 'Paraguay',
-		helmetColor: 'Verde flúor',
-		photo: '/pilotos/frank.jpg',
-		bio: 'Explosivo en las primeras vueltas, no le tiene miedo a nadie.',
-	},
-	{
-		id: 'edu-aguilera',
-		name: 'Edu Aguilera',
-		number: 33,
-		team: 'Aguilera Kart',
-		country: 'Paraguay',
-		helmetColor: 'Blanco con detalles rojos',
-		photo: '/pilotos/edu.jpg',
-		bio: 'Muy prolijo, casi no comete errores en carrera.',
 	},
 	{
 		id: 'monse-aranda',
 		name: 'Monse Aranda',
-		number: 44,
-		team: 'Woman in Command',
-		country: 'Paraguay',
-		helmetColor: 'Rosa y negro',
-		photo: '/pilotos/monse.jpg',
-		bio: 'Gran ritmo en aire limpio, peligrosa si sale cerca de la punta.',
 	},
 	{
 		id: 'noel-perez',
 		name: 'Noel Perez',
-		number: 55,
-		team: 'NP Racing',
-		country: 'Paraguay',
-		helmetColor: 'Celeste y blanco',
-		photo: '/pilotos/noel.jpg',
-		bio: 'Amante de las vueltas rápidas, siempre busca la Fastest Lap.',
 	},
 	{
 		id: 'fran-servin',
 		name: 'Fran Servin',
-		number: 69,
-		team: 'Servin Motorsport',
-		country: 'Paraguay',
-		helmetColor: 'Naranja y negro',
-		photo: '/pilotos/fran-servin.jpg',
-		bio: 'Muy fuerte en maniobras rueda a rueda.',
 	},
 	{
 		id: 'willian',
 		name: 'Willian',
-		number: 88,
-		team: 'Willian Racing',
-		country: 'Paraguay',
-		helmetColor: 'Verde y blanco',
-		photo: '/pilotos/willian.jpg',
-		bio: 'Largo agresivo, no regala la primera vuelta.',
 	},
 	{
 		id: 'fran-candia',
 		name: 'Fran Candia',
-		number: 99,
-		team: 'Candia Kart',
-		country: 'Paraguay',
-		helmetColor: 'Amarillo y negro',
-		photo: '/pilotos/fran-candia.jpg',
-		bio: 'Especialista en remontadas desde el fondo.',
 	},
 ];
 

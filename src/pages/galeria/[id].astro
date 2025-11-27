@@ -1,0 +1,114 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import { galleryAlbums, getAlbumById } from '../../lib/gallery';
+
+export function getStaticPaths() {
+	return galleryAlbums.map((album) => ({
+		params: { id: album.id },
+	}));
+}
+
+const { id } = Astro.params;
+const album = id ? getAlbumById(id) : undefined;
+
+if (!album) {
+	throw new Error('Álbum no encontrado');
+}
+---
+
+<MainLayout
+	title={`Galería · ${album.title}`}
+	description="Momentos de una fecha o salida con el team."
+	image={album.coverImage}
+	path={`/galeria/${album.id}`}>
+	<section class="mb-4">
+		<h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+			{album.title}
+		</h1>
+
+		{
+			album.date && (
+				<p class="mt-1 text-sm text-slate-300">
+					{new Date(album.date).toLocaleDateString('es-PY', {
+						day: '2-digit',
+						month: 'long',
+						year: 'numeric',
+					})}
+				</p>
+			)
+		}
+
+		{
+			album.track && (
+				<p class="text-xs text-slate-400">Circuito: {album.track}</p>
+			)
+		}
+
+		<p class="mt-2 text-xs text-slate-500">
+			La pole es buena… pero la amistad es mejor. 🏁💜🏎️
+		</p>
+	</section>
+
+	{/* GRID DE FOTOS */}
+	<section class="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+		{
+			album.images.map((src) => (
+				<button
+					type="button"
+					class="group overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19] focus:outline-none lightbox-trigger"
+					data-src={src}>
+					<div class="aspect-[4/3] overflow-hidden">
+						<img
+							src={src}
+							alt={album.title}
+							loading="lazy"
+							class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+						/>
+					</div>
+				</button>
+			))
+		}
+	</section>
+
+	{/* LIGHTBOX / FULLSCREEN */}
+	<div
+		id="lightbox"
+		class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 p-4 cursor-zoom-out">
+		<img
+			id="lightbox-img"
+			class="max-h-[90vh] max-w-[90vw] rounded-lg shadow-lg"
+			alt="Foto ampliada"
+		/>
+	</div>
+
+	<script>
+		if (typeof window !== 'undefined') {
+			window.addEventListener('DOMContentLoaded', () => {
+				const triggers = document.querySelectorAll('.lightbox-trigger');
+				const lb = document.getElementById('lightbox');
+				const img = document.getElementById('lightbox-img');
+
+				if (!lb || !img) return;
+
+				// abrir
+				triggers.forEach((btn) => {
+					btn.addEventListener('click', () => {
+						const src = btn.getAttribute('data-src');
+						if (!src) return;
+						img.src = src;
+						lb.classList.remove('hidden');
+						lb.classList.add('flex');
+						document.body.classList.add('lightbox-open');
+					});
+				});
+
+				// cerrar al hacer click en el fondo
+				lb.addEventListener('click', () => {
+					lb.classList.add('hidden');
+					lb.classList.remove('flex');
+					document.body.classList.remove('lightbox-open');
+				});
+			});
+		}
+	</script>
+</MainLayout>
