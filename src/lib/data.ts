@@ -54,6 +54,12 @@ export const drivers: Driver[] = [
 	{
 		id: 'luciano-amarilla',
 		name: 'Luciano Amarilla',
+		number: 3,
+		team: 'Mbarete Racing',
+		city: 'Asunción',
+		helmetColor: 'Fibra de Carbono, Naranja, Gris y Negro',
+		photo: '/pilotos/luciano-amarilla.jpeg',
+		bio: 'Sin miedo, ambicioso',
 	},
 	{
 		id: 'carlos-davalos',
