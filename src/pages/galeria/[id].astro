@@ -49,28 +49,39 @@ if (!album) {
 		</p>
 	</section>
 
-	{/* GRID DE FOTOS */}
 	<section class="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
 		{
-			album.images.map((src) => (
-				<button
-					type="button"
-					class="group overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19] focus:outline-none lightbox-trigger"
-					data-src={src}>
-					<div class="aspect-[4/3] overflow-hidden">
-						<img
-							src={src}
-							alt={album.title}
-							loading="lazy"
-							class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-						/>
-					</div>
-				</button>
-			))
+			album.images.map((media) =>
+				media.isVideo ? (
+					<figure class="group overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19]">
+						<div class="aspect-[4/3] overflow-hidden">
+							<video
+								src={media.url}
+								controls
+								class="h-full w-full object-cover"
+							/>
+						</div>
+					</figure>
+				) : (
+					<button
+						type="button"
+						class="group overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19] focus:outline-none lightbox-trigger"
+						data-src={media.url}>
+						<div class="aspect-[4/3] overflow-hidden">
+							<img
+								src={media.url}
+								alt={album.title}
+								loading="lazy"
+								class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+							/>
+						</div>
+					</button>
+				)
+			)
 		}
 	</section>
 
-	{/* LIGHTBOX / FULLSCREEN */}
+	{/* LIGHTBOX SOLO PARA IMÁGENES */}
 	<div
 		id="lightbox"
 		class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 p-4 cursor-zoom-out">
@@ -90,7 +101,6 @@ if (!album) {
 
 				if (!lb || !img) return;
 
-				// abrir
 				triggers.forEach((btn) => {
 					btn.addEventListener('click', () => {
 						const src = btn.getAttribute('data-src');
@@ -98,15 +108,14 @@ if (!album) {
 						img.src = src;
 						lb.classList.remove('hidden');
 						lb.classList.add('flex');
-						document.body.classList.add('lightbox-open');
+						document.body.classList.add('overflow-hidden');
 					});
 				});
 
-				// cerrar al hacer click en el fondo
 				lb.addEventListener('click', () => {
 					lb.classList.add('hidden');
 					lb.classList.remove('flex');
-					document.body.classList.remove('lightbox-open');
+					document.body.classList.remove('overflow-hidden');
 				});
 			});
 		}

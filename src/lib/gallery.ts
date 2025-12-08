@@ -1,4 +1,10 @@
+// src/lib/gallery.ts
 import { races } from './data';
+
+export type GalleryMedia = {
+	url: string;
+	isVideo: boolean;
+};
 
 export type GalleryAlbum = {
 	id: string;
@@ -6,11 +12,11 @@ export type GalleryAlbum = {
 	date?: string;
 	track?: string;
 	coverImage: string;
-	images: string[];
+	images: GalleryMedia[];
 	category?: 'race' | 'social';
 };
 
-// 🔥 Carpetas sociales manuales (no son carreras)
+// Carpetas sociales/manuales (no son carreras)
 const manualAlbums: Record<
 	string,
 	{
@@ -26,11 +32,13 @@ const manualAlbums: Record<
 		title: 'Asado en equipo',
 		category: 'social',
 	},
-	// Podés agregar más acá
+	// Agregá más si querés:
+	// "taller": { title: "Día de taller", category: "social" },
 };
 
-const imageModules = import.meta.glob(
-	'../assets/galeria/*/*.{jpg,jpeg,png,webp,avif}',
+// Imágenes + videos dentro de src/assets/galeria/*/*
+const mediaModules = import.meta.glob(
+	'../assets/galeria/*/*.{jpg,jpeg,png,webp,avif,mp4,mov,webm}',
 	{
 		eager: true,
 		as: 'url',
@@ -39,9 +47,9 @@ const imageModules = import.meta.glob(
 
 const albumsMap = new Map<string, GalleryAlbum>();
 
-for (const [path, url] of Object.entries(imageModules)) {
+for (const [path, url] of Object.entries(mediaModules)) {
 	const parts = path.split('/');
-	const folder = parts[parts.length - 2];
+	const folder = parts[parts.length - 2]; // nombre de la carpeta
 
 	let album = albumsMap.get(folder);
 	if (!album) {
@@ -57,7 +65,7 @@ for (const [path, url] of Object.entries(imageModules)) {
 				: folder,
 			date: race?.date,
 			track: race?.track,
-			coverImage: url,
+			coverImage: url, // primera media como cover
 			images: [],
 			category: race ? 'race' : manual?.category ?? 'social',
 		};
@@ -65,10 +73,13 @@ for (const [path, url] of Object.entries(imageModules)) {
 		albumsMap.set(folder, album);
 	}
 
-	album.images.push(url);
+	const ext = path.split('.').pop()?.toLowerCase();
+	const isVideo = ['mp4', 'mov', 'webm'].includes(ext ?? '');
+
+	album.images.push({ url, isVideo });
 }
 
-// Ordenar: primero carreras por fecha, luego sociales sin fecha
+// Ordenar: por fecha (carreras primero), luego sociales
 export const galleryAlbums: GalleryAlbum[] = Array.from(
 	albumsMap.values()
 ).sort((a, b) => {

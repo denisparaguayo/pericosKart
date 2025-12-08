@@ -9,22 +9,21 @@ const socialAlbums = galleryAlbums.filter((a) => a.category === 'social');
 <MainLayout
 	title="Galería · Pericos"
 	description="Carreras, podios y momentos fuera de pista con amigos."
-	image="/pericos.jpg"
+	image="/og-galeria.jpg"
 	path="/galeria">
 	<section class="mb-6">
 		<h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">Galería</h1>
 		<p class="mt-2 text-sm text-slate-300">
 			Carreras, podios y momentos con amigos. Elegí una fecha o una salida para
-			ver sus fotos.
+			ver sus fotos y videos.
 		</p>
 	</section>
 
-	{/* 🏁 CARRERAS */}
 	{
 		raceAlbums.length > 0 && (
 			<section class="mb-8">
 				<h2 class="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
-					Carreras
+					Carreras y salidas
 				</h2>
 				<div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
 					{raceAlbums.map((album) => (
@@ -60,7 +59,6 @@ const socialAlbums = galleryAlbums.filter((a) => a.category === 'social');
 		)
 	}
 
-	{/* 🫶 MOMENTOS FUERA DE PISTA */}
 	{
 		socialAlbums.length > 0 && (
 			<section>
@@ -95,7 +93,7 @@ const socialAlbums = galleryAlbums.filter((a) => a.category === 'social');
 	{
 		raceAlbums.length === 0 && socialAlbums.length === 0 && (
 			<p class="text-sm text-slate-400">
-				Todavía no se cargaron fotos en la galería.
+				Todavía no se cargaron fotos ni videos en la galería.
 			</p>
 		)
 	}
