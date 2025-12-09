@@ -1,211 +1,421 @@
 ---
-import MainLayout from '../layouts/MainLayout.astro';
-import {
-	drivers,
-	races,
-	getLastRace,
-	getOverallFastestLap,
-	getDriverById,
-} from '../lib/data';
+import MainLayout from "../layouts/MainLayout.astro";
+import { site } from "../lib/site";
+import { drivers, races, getDriverById } from "../lib/data";
 
-const lastRace = getLastRace();
-const globalFastest = getOverallFastestLap();
+// Ordenar carreras por fecha (más reciente primero)
+const sortedRaces = [...races].sort((a, b) => {
+  const da = new Date(a.date).getTime();
+  const db = new Date(b.date).getTime();
+  if (db !== da) return db - da;
+  return (b.round ?? 0) - (a.round ?? 0);
+});
+
+const latestRace = sortedRaces[0];
+
+// Mini podio por categoría para la ÚLTIMA fecha
+type MiniEntry = {
+  position: number;
+  driverId: string;
+  driverName: string;
+  driverNumber?: number;
+  team?: string;
+};
+
+type MiniPodiumCategory = {
+  category: string;
+  entries: MiniEntry[];
+};
+
+let miniPodiumByCategory: MiniPodiumCategory[] = [];
+
+if (latestRace) {
+  const map = new Map<string, MiniEntry[]>();
+
+  for (const entry of latestRace.podium) {
+    const driver = getDriverById(entry.driverId);
+    if (!driver) continue;
+
+    const cat = driver.category ?? "Sin categoría";
+
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat)!.push({
+      position: entry.position,
+      driverId: driver.id,
+      driverName: driver.name,
+      driverNumber: driver.number,
+      team: driver.team,
+    });
+  }
+
+  miniPodiumByCategory = Array.from(map.entries())
+    .map(([category, entries]) => ({
+      category,
+      entries: entries.sort((a, b) => a.position - b.position),
+    }))
+    .sort((a, b) => a.category.localeCompare(b.category));
+}
+
+// Info rápida
+const totalDrivers = drivers.length;
+const totalRaces = races.length;
+const totalFastestLaps = races.filter((r) => r.fastestLap?.driverId).length;
+
+// Fastest lap overall (mejor tiempo absoluto)
+let absoluteFastest:
+  | {
+      raceId: string;
+      round: number;
+      track: string;
+      driverId: string;
+      driverName: string;
+      time: string;
+      date: string;
+    }
+  | undefined = undefined;
+
+for (const race of races) {
+  if (!race.fastestLap?.time) continue;
+  const driver = getDriverById(race.fastestLap.driverId);
+  if (!driver) continue;
+
+  const time = race.fastestLap.time;
+  const currentMs = Number(time.replace(":", "").replace(".", ""));
+  if (!absoluteFastest) {
+    absoluteFastest = {
+      raceId: race.id,
+      round: race.round,
+      track: race.track,
+      driverId: driver.id,
+      driverName: driver.name,
+      time,
+      date: race.date,
+    };
+  } else {
+    const bestMs = Number(
+      absoluteFastest.time.replace(":", "").replace(".", "")
+    );
+    if (currentMs < bestMs) {
+      absoluteFastest = {
+        raceId: race.id,
+        round: race.round,
+        track: race.track,
+        driverId: driver.id,
+        driverName: driver.name,
+        time,
+        date: race.date,
+      };
+    }
+  }
+}
 ---
 
 <MainLayout
-	title="Pericos · Kart"
-	description="Liga amateur de karting entre amigos. La pole es buena… pero la amistad es mejor."
-	image="/pericos.jpg"
-	path="/">
-	<section class="mb-10 grid gap-8 lg:grid-cols-[3fr,2fr]">
-		{/* HERO */}
-		<div>
-			<p
-				class="mb-3 inline-flex items-center rounded-full border border-fuchsia-500/70 bg-fuchsia-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-fuchsia-300">
-				Pilotos · Multi-equipo
-			</p>
-			<h1 class="text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
-				La pole es buena… pero
-				<span
-					class="bg-gradient-to-r from-fuchsia-400 via-purple-400 to-sky-400 bg-clip-text text-transparent">
-					la amistad es mejor.
-				</span> 🏁💜🏎️
-			</h1>
-			<p class="mt-4 max-w-xl text-sm text-slate-300 sm:text-base">
-				Somos un grupo de pilotos de karting amateur de diferentes equipos. Esta
-				es nuestra central de tiempos, podios, fotos y estadísticas.
-			</p>
+  title={site.name}
+  description="Liga de karting amateur entre amigos. Resultados, pilotos, fotos y fastest laps."
+  image="/og-home.jpg"
+  path="/"
+>
+  <!-- HERO -->
+  <section class="mb-10 grid gap-6 md:grid-cols-[1.6fr,1fr] items-start">
+    <div>
+      <p class="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
+        Liga amateur · Karting
+      </p>
+      <h1 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+        La pole es buena…<br class="hidden sm:block" />
+        <span class="bg-gradient-to-r from-fuchsia-400 via-purple-400 to-sky-400 bg-clip-text text-transparent">
+          pero la amistad es mejor.
+        </span>{' '}
+        🏁💜🏎️
+      </h1>
+      <p class="mt-4 max-w-xl text-sm text-slate-300">
+        Somos un grupo de pilotos amateur de diferentes equipos y categorías,
+        unidos por lo mismo: girar más rápido, pelear rueda a rueda y terminar
+        riéndonos en el box.
+      </p>
 
-			{
-				lastRace && (
-					<div class="mt-6 grid gap-4 sm:grid-cols-2">
-						{/* Última fecha */}
-						<div class="rounded-xl border border-slate-800 bg-[#0b0b19] p-4 shadow-lg">
-							<p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-								Última fecha
-							</p>
-							<p class="mt-1 text-sm font-medium">
-								Ronda {lastRace.round} · {lastRace.track}
-							</p>
-							<p class="text-xs text-slate-400">
-								{new Date(lastRace.date).toLocaleDateString('es-PY', {
-									day: '2-digit',
-									month: 'short',
-									year: 'numeric',
-								})}
-							</p>
-							<div class="mt-3 space-y-2 text-xs">
-								<p class="font-semibold text-slate-300">Podio:</p>
-								<ul class="space-y-1">
-									{lastRace.podium.map((p) => {
-										const d = getDriverById(p.driverId);
-										if (!d) return null;
-										return (
-											<li class="flex items-center justify-between">
-												<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold">
-													{p.position}
-												</span>
-												<span class="mx-2 flex-1 truncate text-xs">
-													{d.name}
-												</span>
-												<span class="text-[10px] text-slate-400">
-													#{d.number}
-												</span>
-											</li>
-										);
-									})}
-								</ul>
-							</div>
-						</div>
+      <div class="mt-5 flex flex-wrap gap-3 text-xs">
+        <a
+          href="/pilotos"
+          class="inline-flex items-center rounded-full bg-fuchsia-600 px-4 py-2 font-medium text-white shadow-[0_0_24px_rgba(244,114,182,0.7)] hover:bg-fuchsia-500 transition-colors"
+        >
+          Ver pilotos
+        </a>
+        <a
+          href="/galeria"
+          class="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 font-medium text-slate-100 hover:border-fuchsia-500/70 hover:text-fuchsia-300 transition-colors"
+        >
+          Galería de fotos
+        </a>
+        <a
+          href="/resultados"
+          class="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 font-medium text-slate-100 hover:border-fuchsia-500/70 hover:text-fuchsia-300 transition-colors"
+        >
+          Tabla de resultados
+        </a>
+      </div>
+    </div>
 
-						{/* FASTEST LAP GLOBAL - MORADO */}
-						{globalFastest && (
-							<div class="relative overflow-hidden rounded-xl border border-purple-500/80 bg-gradient-to-br from-purple-900/60 via-fuchsia-900/40 to-slate-900 p-[1px] shadow-[0_0_28px_rgba(168,85,247,0.35)]">
-								<div class="h-full w-full rounded-[11px] bg-[#080513]/95 p-4">
-									<p class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-purple-300">
-										<span class="inline-flex h-2 w-2 animate-pulse rounded-full bg-purple-400" />
-										Fastest Lap
-									</p>
-									<p class="mt-2 text-sm font-semibold text-slate-50">
-										{globalFastest.driver.name}
-										<span class="ml-2 text-[11px] text-slate-400">
-											#{globalFastest.driver.number} ·{' '}
-											{globalFastest.driver.team}
-										</span>
-									</p>
-									<p class="mt-1 text-2xl font-mono font-semibold text-purple-300">
-										{globalFastest.time}
-									</p>
-									<p class="mt-1 text-xs text-slate-400">
-										Lograda en ronda {globalFastest.race.round} ·{' '}
-										{globalFastest.race.track}
-									</p>
-								</div>
-							</div>
-						)}
-					</div>
-				)
-			}
-		</div>
+    <!-- Fastest Lap absoluta -->
+    <div class="rounded-2xl border border-slate-800 bg-[#050515] p-4 text-xs shadow-[0_0_40px_rgba(15,23,42,0.9)]">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+        Fastest lap absoluta
+      </p>
+      {absoluteFastest ? (
+        <>
+          <div class="mt-3 flex items-baseline justify-between gap-2">
+            <div>
+              <p class="text-[11px] text-slate-400">Piloto</p>
+              <a
+                href={`/pilotos/${absoluteFastest.driverId}`}
+                class="text-sm font-semibold text-fuchsia-300 hover:text-fuchsia-200 transition-colors"
+              >
+                {absoluteFastest.driverName}
+              </a>
+            </div>
+            <div class="text-right">
+              <p class="text-[11px] text-slate-400">Tiempo</p>
+              <p class="text-lg font-semibold text-fuchsia-300">
+                {absoluteFastest.time}
+              </p>
+            </div>
+          </div>
+          <div class="mt-3 border-t border-slate-800 pt-3 text-[11px] text-slate-400">
+            <p>
+              Ronda {absoluteFastest.round} · {absoluteFastest.track}
+            </p>
+            <p class="mt-1">
+              {new Date(absoluteFastest.date).toLocaleDateString('es-PY', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </p>
+          </div>
+        </>
+      ) : (
+        <p class="mt-3 text-sm text-slate-400">
+          Todavía no hay vueltas rápidas registradas.
+        </p>
+      )}
+    </div>
+  </section>
 
-		{/* Panel lateral: CTA + mini stats */}
-		<div class="space-y-4">
-			<div class="rounded-xl border border-slate-800 bg-[#0b0b19] p-4 text-sm">
-				<p
-					class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-					Info rápida
-				</p>
-				<p class="mt-2 text-sm text-slate-200">
-					Pilotos activos:{' '}
-					<span class="font-semibold text-fuchsia-300">
-						{drivers.length}
-					</span>
-				</p>
-				{
-					races.length > 0 && (
-						<p class="text-sm text-slate-200">
-							Fechas disputadas:{' '}
-							<span class="font-semibold text-fuchsia-300">4</span>
-						</p>
-					)
-				}
-				<p class="mt-3 text-xs text-slate-400">
-					Próximo objetivo: bajar una décima más en tu mejor lap.
-				</p>
-			</div>
+  <!-- ÚLTIMA FECHA -->
+  {latestRace && (
+    <section class="mb-8 rounded-2xl border border-slate-800 bg-[#050515] p-4 text-xs">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+            Última fecha
+          </p>
+          <p class="mt-1 text-sm font-semibold text-slate-100">
+            Ronda {latestRace.round} · {latestRace.track}
+          </p>
+          {latestRace.layout && (
+            <p class="text-[11px] text-slate-400">
+              Layout: {latestRace.layout}
+            </p>
+          )}
+        </div>
+        <div class="text-right text-xs text-slate-400">
+          <p>
+            {new Date(latestRace.date).toLocaleDateString('es-PY', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}
+          </p>
+        </div>
+      </div>
 
-			<a
-				href="/galeria"
-				class="flex items-center justify-between rounded-xl border border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 px-4 py-3 text-sm hover:border-fuchsia-500/70 hover:shadow-[0_0_18px_rgba(251,113,133,0.3)] transition">
-				<div>
-					<p
-						class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-						Galería
-					</p>
-					<p class="text-sm text-slate-100">Mirá las mejores fotos de pista</p>
-				</div>
-				<span class="text-lg">🏁</span>
-			</a>
-		</div>
-	</section>
+      <div class="mt-3 grid gap-4 md:grid-cols-[1.2fr,1.1fr]">
+        <!-- Podio general -->
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+            Podio general
+          </p>
+          <ol class="mt-2 space-y-1 text-xs">
+            {latestRace.podium.map((entry) => {
+              const d = getDriverById(entry.driverId);
+              if (!d) return null;
+              return (
+                <li class="flex items-center justify-between rounded-lg bg-slate-900/70 px-3 py-1.5">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class={[
+                        'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold',
+                        entry.position === 1 && 'bg-amber-400 text-slate-900',
+                        entry.position === 2 && 'bg-slate-300 text-slate-900',
+                        entry.position === 3 && 'bg-amber-700 text-slate-50',
+                        entry.position > 3 && 'bg-slate-700 text-slate-100',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                    >
+                      {entry.position}
+                    </span>
+                    <a
+                      href={`/pilotos/${d.id}`}
+                      class="font-medium text-slate-100 hover:text-fuchsia-300 transition-colors"
+                    >
+                      {d.name}
+                    </a>
+                  </div>
+                  <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                    {d.number && <span>#{d.number}</span>}
+                    {d.team && (
+                      <span class="hidden sm:inline text-slate-500">
+                        {d.team}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
 
-	{/* GRID DE PILOTOS */}
-	<section id="pilotos" class="mt-6">
-		<div class="mb-4 flex items-end justify-between gap-3">
-			<div>
-				<h2 class="text-lg font-semibold tracking-tight sm:text-xl">Pilotos</h2>
-				<p class="text-xs text-slate-400 sm:text-sm">
-					Cada uno con su propio equipo, pero todos buscando la vuelta perfecta.
-				</p>
-			</div>
-			<a
-				href="/resultados"
-				class="hidden text-xs font-medium text-fuchsia-300 hover:text-fuchsia-200 sm:inline-flex">
-				Ver resultados →
-			</a>
-		</div>
+        <!-- Fastest lap de la fecha -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+            Fastest lap de la fecha
+          </p>
+          {latestRace.fastestLap?.driverId ? (
+            (() => {
+              const d = getDriverById(latestRace.fastestLap.driverId);
+              if (!d) {
+                return (
+                  <p class="mt-2 text-xs text-slate-400">
+                    Vuelta rápida registrada sin piloto válido.
+                  </p>
+                );
+              }
+              return (
+                <div class="mt-2 flex items-baseline justify-between gap-2">
+                  <div>
+                    <p class="text-[11px] text-slate-400">Piloto</p>
+                    <a
+                      href={`/pilotos/${d.id}`}
+                      class="text-sm font-semibold text-fuchsia-300 hover:text-fuchsia-200 transition-colors"
+                    >
+                      {d.name}
+                    </a>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-[11px] text-slate-400">Tiempo</p>
+                    <p class="text-lg font-semibold text-fuchsia-300">
+                      {latestRace.fastestLap.time}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            <p class="mt-2 text-xs text-slate-400">
+              Todavía no se cargó la vuelta rápida de esta fecha.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  )}
 
-		<div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-			{
-				drivers.map((d) => (
-					<a
-						href={`/pilotos/${d.id}`}
-						class="group flex flex-col overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19] hover:border-fuchsia-500/70 hover:bg-slate-900/80 transition">
-						{d.photo && (
-							<div class="aspect-[16/10] overflow-hidden">
-								<img
-									src={d.photo}
-									alt={d.name}
-									class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-									loading="lazy"
-								/>
-							</div>
-						)}
-						<div class="flex flex-1 flex-col gap-1 px-3 py-3">
-							<div class="flex items-center justify-between text-xs text-slate-400">
-								<span class="inline-flex items-center gap-1">
-									<span class="h-2 w-2 rounded-full bg-emerald-500" />
-									{d.team}
-								</span>
-								<span class="font-mono text-[11px] text-slate-500">
-									#{d.number}
-								</span>
-							</div>
-							<p class="text-sm font-semibold text-slate-100">{d.name}</p>
-							{d.city && (
-								<p class="text-[11px] text-slate-400">
-									{d.city} · {d.country}
-								</p>
-							)}
-							{d.helmetColor && (
-								<p class="mt-1 line-clamp-2 text-[11px] text-slate-400">
-									Casco: {d.helmetColor}
-								</p>
-							)}
-						</div>
-					</a>
-				))
-			}
-		</div>
-	</section>
+  <!-- MINI PODIO POR CATEGORÍA (ÚLTIMA FECHA) -->
+  {latestRace && miniPodiumByCategory.length > 0 && (
+    <section class="mb-8">
+      <h2 class="mb-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
+        Mini podio por categoría · última fecha
+      </h2>
+      <p class="mb-3 text-[11px] text-slate-400">
+        Basado en la ronda {latestRace.round} · {latestRace.track}
+      </p>
+
+      <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+        {miniPodiumByCategory.map((cat) => (
+          <article class="rounded-xl border border-slate-800 bg-[#050515] p-3 text-xs">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-fuchsia-300">
+              {cat.category}
+            </p>
+            <ol class="mt-2 space-y-1">
+              {cat.entries.map((e) => (
+                <li class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class={[
+                        'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold',
+                        e.position === 1 && 'bg-amber-400 text-slate-900',
+                        e.position === 2 && 'bg-slate-300 text-slate-900',
+                        e.position === 3 && 'bg-amber-700 text-slate-50',
+                        e.position > 3 && 'bg-slate-700 text-slate-100',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                    >
+                      {e.position}
+                    </span>
+                    <a
+                      href={`/pilotos/${e.driverId}`}
+                      class="font-medium text-slate-100 hover:text-fuchsia-300 transition-colors"
+                    >
+                      {e.driverName}
+                    </a>
+                  </div>
+                  <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                    {e.driverNumber && <span>#{e.driverNumber}</span>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </article>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <!-- INFO RÁPIDA -->
+  <section class="mb-10">
+    <h2 class="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
+      Info rápida de la liga
+    </h2>
+
+    <div class="grid gap-3 sm:grid-cols-3">
+      <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
+        <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+          Pilotos registrados
+        </p>
+        <p class="mt-2 text-2xl font-semibold text-slate-50">
+          {totalDrivers}
+        </p>
+        <p class="mt-1 text-[11px] text-slate-500">
+          Diferentes equipos y categorías.
+        </p>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
+        <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+          Fechas disputadas
+        </p>
+        <p class="mt-2 text-2xl font-semibold text-slate-50">
+          {totalRaces}
+        </p>
+        <p class="mt-1 text-[11px] text-slate-500">
+          Entre Super Kart, KCP y Brasil.
+        </p>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
+        <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+          Vueltas rápidas registradas
+        </p>
+        <p class="mt-2 text-2xl font-semibold text-fuchsia-300">
+          {totalFastestLaps}
+        </p>
+        <p class="mt-1 text-[11px] text-slate-500">
+          Una por fecha
+        </p>
+      </div>
+    </div>
+  </section>
 </MainLayout>

@@ -1,111 +1,274 @@
 ---
-import MainLayout from '../../layouts/MainLayout.astro';
-import { races, getDriverById } from '../../lib/data';
+// src/pages/resultados/index.astro
 
-const sortedRaces = [...races].sort(
-	(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+import MainLayout from '../../layouts/MainLayout.astro';
+import {
+	drivers,
+	races,
+	getBestLapForDriver,
+	getDriverById,
+} from '../../lib/data';
+
+// Construir stats por piloto
+type Standing = {
+	driverId: string;
+	name: string;
+	number?: number;
+	team?: string;
+	category?: string;
+	totalRaces: number;
+	podiums: number;
+	wins: number;
+	fastestLaps: number;
+	bestPosition: number | null;
+	bestLapTime: string | null;
+};
+
+const standingsMap = new Map<string, Standing>();
+
+for (const d of drivers) {
+	standingsMap.set(d.id, {
+		driverId: d.id,
+		name: d.name,
+		number: d.number,
+		team: d.team,
+		category: d.category,
+		totalRaces: 0,
+		podiums: 0,
+		wins: 0,
+		fastestLaps: 0,
+		bestPosition: null,
+		bestLapTime: null,
+	});
+}
+
+// Recorrer carreras y llenar stats
+for (const race of races) {
+	// posiciones finales
+	for (const pos of race.podium) {
+		const s = standingsMap.get(pos.driverId);
+		if (!s) continue;
+
+		s.totalRaces += 1;
+		if (pos.position <= 3) s.podiums += 1;
+		if (pos.position === 1) s.wins += 1;
+
+		if (s.bestPosition === null || pos.position < s.bestPosition) {
+			s.bestPosition = pos.position;
+		}
+	}
+
+	// fastest laps
+	if (race.fastestLap?.driverId) {
+		const s = standingsMap.get(race.fastestLap.driverId);
+		if (s) {
+			s.fastestLaps += 1;
+		}
+	}
+}
+
+// Mejor tiempo absoluto por piloto
+for (const [id, s] of standingsMap) {
+	const bestLap = getBestLapForDriver(id);
+	s.bestLapTime = bestLap ? bestLap.time : null;
+}
+
+// Array overall
+const overallStandings: Standing[] = Array.from(standingsMap.values()).sort(
+	(a, b) => {
+		// ordenar por mejor posición, luego por mejor tiempo, luego por nombre
+		const aPos = a.bestPosition ?? 999;
+		const bPos = b.bestPosition ?? 999;
+		if (aPos !== bPos) return aPos - bPos;
+
+		if (a.bestLapTime && b.bestLapTime) {
+			const aT = parseFloat(a.bestLapTime);
+			const bT = parseFloat(b.bestLapTime);
+			if (Number.isFinite(aT) && Number.isFinite(bT) && aT !== bT) {
+				return aT - bT;
+			}
+		}
+
+		return a.name.localeCompare(b.name);
+	}
+);
+
+// Agrupar por categoría
+const categoriesMap = new Map<string, Standing[]>();
+
+for (const s of overallStandings) {
+	const cat = s.category || 'Sin categoría';
+	if (!categoriesMap.has(cat)) categoriesMap.set(cat, []);
+	categoriesMap.get(cat)!.push(s);
+}
+
+const categories = Array.from(categoriesMap.entries()).sort(([a], [b]) =>
+	a.localeCompare(b)
 );
 ---
 
 <MainLayout
 	title="Resultados · Pericos"
-	description="Historial de podios y vueltas rápidas de la liga amateur Pericos."
-	image="/pericos.jpg"
+	description="Resumen de resultados de la liga: carreras disputadas, podios, victorias, vueltas rápidas y mejores tiempos por piloto."
+	image="/og-resultados.jpg"
 	path="/resultados">
 	<section class="mb-6">
 		<h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">
-			Resultados & Podios
+			Resultados generales
 		</h1>
 		<p class="mt-2 text-sm text-slate-300">
-			Histórico de fechas, podios y vueltas rápidas. Morado siempre marca la
-			Fastest Lap de la jornada.
+			Estadísticas por piloto: carreras, podios, victorias, vueltas rápidas,
+			mejor posición y mejor tiempo registrado. Sin puntos, solo data real de
+			pista.
 		</p>
 	</section>
 
-	<section class="space-y-4">
-		{
-			sortedRaces.map((race) => {
-				const fastestDriver = getDriverById(race.fastestLap.driverId);
-				return (
-					<article class="overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19]">
-						<div class="border-b border-slate-800/80 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-4 py-3">
-							<div class="flex flex-wrap items-center justify-between gap-2">
-								<div>
-									<p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-										Ronda {race.round}
-									</p>
-									<p class="text-sm font-medium text-slate-100">{race.track}</p>
-								</div>
-								<div class="text-right text-xs text-slate-400">
-									<p>
-										{new Date(race.date).toLocaleDateString('es-PY', {
-											day: '2-digit',
-											month: 'short',
-											year: 'numeric',
-										})}
-									</p>
-									{race.layout && <p>Layout: {race.layout}</p>}
-								</div>
-							</div>
-						</div>
+	<!-- OVERALL -->
+	<section class="mb-10">
+		<h2
+			class="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
+			Overall (todas las categorías)
+		</h2>
 
-						<div class="grid gap-4 p-4 sm:grid-cols-[2fr,1.4fr]">
-							{/* Podio */}
-							<div>
-								<p class="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-									Podio
-								</p>
-								<div class="grid gap-2 sm:grid-cols-3">
-									{race.podium.map((p) => {
-										const d = getDriverById(p.driverId);
-										if (!d) return null;
-										return (
-											<div class="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-3 text-xs">
-												<p class="flex items-center justify-between text-[11px] text-slate-400">
-													<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold">
-														{p.position}
-													</span>
-													<span class="font-mono text-[10px] text-slate-500">
-														#{d.number}
-													</span>
-												</p>
-												<p class="mt-1 text-xs font-semibold text-slate-100">
-													{d.name}
-												</p>
-												<p class="text-[11px] text-slate-400">{d.team}</p>
-											</div>
-										);
-									})}
-								</div>
-							</div>
-
-							{/* Fastest Lap de la fecha */}
-							{fastestDriver && (
-								<div class="relative overflow-hidden rounded-lg border border-purple-500/80 bg-gradient-to-br from-purple-900/70 via-fuchsia-900/40 to-slate-950 p-[1px] shadow-[0_0_22px_rgba(168,85,247,0.35)]">
-									<div class="rounded-[9px] bg-[#080513]/95 p-3 text-xs">
-										<p class="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-purple-300">
-											<span class="inline-flex h-2 w-2 animate-pulse rounded-full bg-purple-400" />
-											Fastest Lap
-										</p>
-										<p class="mt-1 font-semibold text-slate-50">
-											{fastestDriver.name}
-											<span class="ml-1 text-[10px] text-slate-400">
-												#{fastestDriver.number}
-											</span>
-										</p>
-										<p class="mt-1 font-mono text-lg font-semibold text-purple-300">
-											{race.fastestLap.time}
-										</p>
-										<p class="mt-1 text-[11px] text-slate-400">
-											{fastestDriver.team}
-										</p>
-									</div>
-								</div>
-							)}
-						</div>
-					</article>
-				);
-			})
-		}
+		<div
+			class="overflow-x-auto rounded-xl border border-slate-800 bg-[#050515]">
+			<table class="min-w-full text-left text-xs">
+				<thead
+					class="border-b border-slate-800 bg-slate-900/60 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+					<tr>
+						<th class="px-3 py-2">Pos</th>
+						<th class="px-3 py-2">Piloto</th>
+						<th class="px-3 py-2">#</th>
+						<th class="px-3 py-2">Equipo</th>
+						<th class="px-3 py-2">Categoría</th>
+						<th class="px-3 py-2 text-right">Carreras</th>
+						<th class="px-3 py-2 text-right">Podios</th>
+						<th class="px-3 py-2 text-right">Victorias</th>
+						<th class="px-3 py-2 text-right">Fastest</th>
+						<th class="px-3 py-2 text-right">Mejor pos.</th>
+						<th class="px-3 py-2 text-right">Mejor tiempo</th>
+					</tr>
+				</thead>
+				<tbody>
+					{
+						overallStandings.map((s, idx) => (
+							<tr class={idx % 2 === 0 ? 'bg-[#030712]' : 'bg-[#050816]'}>
+								<td class="px-3 py-2 text-[11px] text-slate-300">{idx + 1}</td>
+								<td class="px-3 py-2 text-[11px]">
+									<a
+										href={`/pilotos/${s.driverId}`}
+										class="font-medium text-slate-100 hover:text-fuchsia-300 transition-colors">
+										{s.name}
+									</a>
+								</td>
+								<td class="px-3 py-2 text-[11px] text-slate-300">
+									{s.number ?? '-'}
+								</td>
+								<td class="px-3 py-2 text-[11px] text-slate-300">
+									{s.team ?? '-'}
+								</td>
+								<td class="px-3 py-2 text-[11px]">
+									{s.category ? (
+										<span class="inline-flex items-center rounded-full border border-fuchsia-500/50 bg-fuchsia-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-200">
+											{s.category}
+										</span>
+									) : (
+										<span class="text-slate-500 text-[11px]">-</span>
+									)}
+								</td>
+								<td class="px-3 py-2 text-[11px] text-right text-slate-300">
+									{s.totalRaces}
+								</td>
+								<td class="px-3 py-2 text-[11px] text-right text-slate-300">
+									{s.podiums}
+								</td>
+								<td class="px-3 py-2 text-[11px] text-right text-slate-300">
+									{s.wins}
+								</td>
+								<td class="px-3 py-2 text-[11px] text-right text-fuchsia-300">
+									{s.fastestLaps}
+								</td>
+								<td class="px-3 py-2 text-[11px] text-right text-slate-300">
+									{s.bestPosition ?? '-'}
+								</td>
+								<td class="px-3 py-2 text-[11px] text-right font-semibold text-purple-300">
+									{s.bestLapTime ?? '—'}
+								</td>
+							</tr>
+						))
+					}
+				</tbody>
+			</table>
+		</div>
 	</section>
+
+	<!-- POR CATEGORÍA -->
+	{
+		categories.map(([catName, catStandings]) => (
+			<section class="mb-8">
+				<h2 class="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
+					Clasificación · {catName}
+				</h2>
+
+				<div class="overflow-x-auto rounded-xl border border-slate-800 bg-[#050515]">
+					<table class="min-w-full text-left text-xs">
+						<thead class="border-b border-slate-800 bg-slate-900/60 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+							<tr>
+								<th class="px-3 py-2">Pos</th>
+								<th class="px-3 py-2">Piloto</th>
+								<th class="px-3 py-2">#</th>
+								<th class="px-3 py-2">Equipo</th>
+								<th class="px-3 py-2 text-right">Carreras</th>
+								<th class="px-3 py-2 text-right">Podios</th>
+								<th class="px-3 py-2 text-right">Victorias</th>
+								<th class="px-3 py-2 text-right">Fastest</th>
+								<th class="px-3 py-2 text-right">Mejor pos.</th>
+								<th class="px-3 py-2 text-right">Mejor tiempo</th>
+							</tr>
+						</thead>
+						<tbody>
+							{catStandings.map((s, idx) => (
+								<tr class={idx % 2 === 0 ? 'bg-[#030712]' : 'bg-[#050816]'}>
+									<td class="px-3 py-2 text-[11px] text-slate-300">
+										{idx + 1}
+									</td>
+									<td class="px-3 py-2 text-[11px]">
+										<a
+											href={`/pilotos/${s.driverId}`}
+											class="font-medium text-slate-100 hover:text-fuchsia-300 transition-colors">
+											{s.name}
+										</a>
+									</td>
+									<td class="px-3 py-2 text-[11px] text-slate-300">
+										{s.number ?? '-'}
+									</td>
+									<td class="px-3 py-2 text-[11px] text-slate-300">
+										{s.team ?? '-'}
+									</td>
+									<td class="px-3 py-2 text-[11px] text-right text-slate-300">
+										{s.totalRaces}
+									</td>
+									<td class="px-3 py-2 text-[11px] text-right text-slate-300">
+										{s.podiums}
+									</td>
+									<td class="px-3 py-2 text-[11px] text-right text-slate-300">
+										{s.wins}
+									</td>
+									<td class="px-3 py-2 text-[11px] text-right text-fuchsia-300">
+										{s.fastestLaps}
+									</td>
+									<td class="px-3 py-2 text-[11px] text-right text-slate-300">
+										{s.bestPosition ?? '-'}
+									</td>
+									<td class="px-3 py-2 text-[11px] text-right font-semibold text-purple-300">
+										{s.bestLapTime ?? '—'}
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			</section>
+		))
+	}
 </MainLayout>

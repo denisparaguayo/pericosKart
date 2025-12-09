@@ -4,9 +4,7 @@ import { drivers, races, getDriverById } from '../../lib/data';
 
 export function getStaticPaths() {
 	return drivers.map((driver) => ({
-		params: {
-			slug: driver.id,
-		},
+		params: { slug: driver.id },
 	}));
 }
 
@@ -17,55 +15,76 @@ if (!driver) {
 	throw new Error('Piloto no encontrado');
 }
 
+// COLORES POR CATEGORÍA
+const categoryColors = {
+	Pro: 'bg-yellow-500 text-black border-yellow-300',
+	Evo: 'bg-orange-500 text-black border-orange-300',
+	Academy: 'bg-pink-500 text-black border-pink-300',
+	Rookie: 'bg-emerald-500 text-black border-emerald-300',
+	Titan: 'bg-slate-400 text-black border-slate-300',
+};
+
+const badgeClass = categoryColors[driver.category] ?? 'bg-slate-600 text-white';
+
+// Carreras donde aparece este piloto
 const driverRaces = races.filter((race) => {
 	const onPodium = race.podium.some((p) => p.driverId === driver.id);
-	const isFastest = race.fastestLap.driverId === driver.id;
+	const isFastest = race.fastestLap?.driverId === driver.id;
 	return onPodium || isFastest;
 });
+
+// Entradas de podio
+const podiumEntries = driverRaces
+	.map((race) => {
+		const p = race.podium.find((p) => p.driverId === driver.id);
+		return p ? { race, position: p.position } : null;
+	})
+	.filter(Boolean);
+
+// Stats
+const totalRaces = driverRaces.length;
+const totalPodiums = podiumEntries.length;
+const totalWins = podiumEntries.filter((e) => e.position === 1).length;
+const totalFastestLaps = driverRaces.filter(
+	(race) => race.fastestLap?.driverId === driver.id
+).length;
+const bestPosition = podiumEntries.length
+	? Math.min(...podiumEntries.map((e) => e.position))
+	: null;
+
+// Timeline ordenado
+const timeline = [...driverRaces].sort(
+	(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+);
+
+function getPositionForRace(race, driverId) {
+	const podiumPos = race.podium.find((p) => p.driverId === driverId);
+	return podiumPos ? podiumPos.position : null;
+}
+
+function getBarHeight(position) {
+	if (!position) return 32;
+	if (position === 1) return 96;
+	if (position === 2) return 80;
+	if (position === 3) return 64;
+	return 48;
+}
 ---
-
-<head>
-	<meta property="og:title" content={`Piloto · ${driver.name}`} />
-	<meta
-		property="og:description"
-		content={driver.bio ?? 'Piloto de karting amateur'}
-	/>
-	<meta
-		property="og:image"
-		content={`https://pericos.netlify.app${driver.photo}`}
-	/>
-
-	<meta property="og:type" content="website" />
-	<meta
-		property="og:url"
-		content={`https://pericos.netlify.app/pilotos/${driver.id}`}
-	/>
-
-	<!-- Para WhatsApp -->
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content={`Piloto · ${driver.name}`} />
-	<meta
-		name="twitter:image"
-		content={`https://pericos.netlify.app${driver.photo}`}
-	/>
-	<meta property="og:image:width" content="1200" />
-	<meta property="og:image:height" content="630" />
-</head>
 
 <MainLayout
 	title={`Piloto · ${driver.name}`}
 	description={driver.bio ?? 'Piloto de karting amateur.'}
-	image={driver.photo ?? '/pericos.jpg'}
+	image={driver.photo ?? '/og-pilotos.jpg'}
 	path={`/pilotos/${driver.id}`}>
-	<section class="mb-6 grid gap-6 md:grid-cols-[2fr,1.5fr]">
+	<!-- HEADER -->
+	<section class="mb-8 grid gap-6 md:grid-cols-[2fr,1.6fr]">
 		<div class="flex gap-4">
 			{
 				driver.photo && (
 					<button
-						type="button"
 						id="driver-photo"
 						data-src={driver.photo}
-						class="h-24 w-24 md:h-36 md:w-36 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 flex-shrink-0">
+						class="h-24 w-24 md:h-32 md:w-32 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 shadow-lg transition-transform hover:-translate-y-1">
 						<img
 							src={driver.photo}
 							alt={driver.name}
@@ -75,121 +94,205 @@ const driverRaces = races.filter((race) => {
 				)
 			}
 
-			<div>
-				<p
-					class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+			<div class="flex-1">
+				<p class="text-[11px] uppercase tracking-[0.22em] text-slate-400">
 					Piloto
 				</p>
-				<h1 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-					{driver.name}
-				</h1>
+
+				<div class="mt-1 flex items-baseline gap-2">
+					{
+						driver.number && (
+							<span class="font-mono text-3xl font-bold text-fuchsia-400 drop-shadow">
+								{driver.number}
+							</span>
+						)
+					}
+					<h1 class="text-2xl font-semibold sm:text-3xl">{driver.name}</h1>
+				</div>
+
 				{
-					driver.number && driver.team && (
-						<p class="mt-1 text-sm text-slate-300">
-							#{driver.number} · {driver.team}
+					driver.team && (
+						<p class="mt-1 text-[11px] uppercase tracking-wide text-slate-300">
+							{driver.team}
 						</p>
 					)
 				}
-				{driver.city && <p class="text-xs text-slate-400">{driver.city}</p>}
+
+				<!-- BADGE DE CATEGORÍA CON COLOR -->
+				{
+					driver.category && (
+						<span
+							class={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-wider ${badgeClass}`}>
+							<span class="h-1.5 w-1.5 rounded-full bg-black/40" />
+							{driver.category}
+						</span>
+					)
+				}
+
+				{
+					driver.city && (
+						<p class="mt-1 text-xs text-slate-400">{driver.city}</p>
+					)
+				}
 				{driver.bio && <p class="mt-3 text-sm text-slate-300">{driver.bio}</p>}
+
+				<a
+					href={`/pilotos/${driver.id}/poster`}
+					class="mt-3 inline-flex text-[11px] px-3 py-1 border rounded-full border-slate-700 hover:border-fuchsia-500 hover:text-fuchsia-300">
+					Ver poster / compartir
+				</a>
 			</div>
 		</div>
 
-		<div
-			class="space-y-3 rounded-xl border border-slate-800 bg-[#0b0b19] p-4 text-xs">
-			<p
-				class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+		<!-- FICHA RÁPIDA -->
+		<div class="rounded-xl border border-slate-800 bg-[#0b0b19] p-4 text-xs">
+			<p class="text-[11px] uppercase tracking-widest text-slate-400">
 				Ficha rápida
 			</p>
 
-			<div class="grid grid-cols-2 gap-2">
+			<div class="grid grid-cols-2 gap-3 mt-2">
 				{
 					driver.number && (
 						<div>
 							<p class="text-[11px] text-slate-400">Número</p>
-							<p class="text-sm font-semibold text-slate-100">
-								#{driver.number}
-							</p>
+							<p class="text-sm font-semibold">#{driver.number}</p>
 						</div>
 					)
 				}
-				{
-					driver.team && (
-						<div>
-							<p class="text-[11px] text-slate-400">Team / Escudería</p>
-							<p class="text-sm text-slate-100">{driver.team}</p>
-						</div>
-					)
-				}
+
 				{
 					driver.helmetColor && (
 						<div>
 							<p class="text-[11px] text-slate-400">Colores</p>
-							<p class="text-sm text-slate-100">{driver.helmetColor}</p>
+							<p class="text-sm">{driver.helmetColor}</p>
 						</div>
 					)
 				}
+
 				{
-					driver.city && (
+					driver.category && (
 						<div>
-							<p class="text-[11px] text-slate-400">Ciudad</p>
-							<p class="text-sm text-slate-100">{driver.city}</p>
+							<p class="text-[11px] text-slate-400">Categoría</p>
+							<p class="text-sm">{driver.category}</p>
 						</div>
 					)
 				}
+
+				<div>
+					<p class="text-[11px] text-slate-400">Carreras</p>
+					<p class="text-sm">{totalRaces}</p>
+				</div>
+			</div>
+
+			<div class="grid grid-cols-4 gap-2 mt-4 text-center">
+				<div class="rounded bg-slate-900/70 p-2">
+					<p class="text-[10px] text-slate-400">Podios</p>
+					<p class="text-sm">{totalPodiums}</p>
+				</div>
+				<div class="rounded bg-slate-900/70 p-2">
+					<p class="text-[10px] text-slate-400">Victorias</p>
+					<p class="text-sm text-amber-300">{totalWins}</p>
+				</div>
+				<div class="rounded bg-slate-900/70 p-2">
+					<p class="text-[10px] text-slate-400">Fastest</p>
+					<p class="text-sm text-fuchsia-300">{totalFastestLaps}</p>
+				</div>
+				<div class="rounded bg-slate-900/70 p-2">
+					<p class="text-[10px] text-slate-400">Mejor pos.</p>
+					<p class="text-sm text-emerald-300">
+						{bestPosition ? `${bestPosition}°` : '-'}
+					</p>
+				</div>
 			</div>
 		</div>
 	</section>
 
+	<!-- GRÁFICO DE RENDIMIENTO -->
+	<section class="mb-8 rounded-xl border border-slate-800 bg-[#050515] p-4">
+		<p class="text-[11px] uppercase tracking-widest text-slate-400">
+			Rendimiento por carrera
+		</p>
+
+		{
+			timeline.length === 0 ? (
+				<p class="text-sm text-slate-400 mt-2">No hay carreras registradas.</p>
+			) : (
+				<div class="mt-4 flex items-end gap-3 overflow-x-auto pb-2">
+					{timeline.map((race) => {
+						const position = getPositionForRace(race, driver.id);
+						const height = getBarHeight(position);
+						const isFast = race.fastestLap?.driverId === driver.id;
+
+						return (
+							<div class="flex flex-col items-center min-w-[60px]">
+								<div
+									class={`w-6 flex items-end justify-center rounded-t-full ${
+										position === 1
+											? 'bg-amber-400'
+											: position === 2
+												? 'bg-slate-300'
+												: position === 3
+													? 'bg-amber-700'
+													: 'bg-slate-700'
+									} ${isFast ? 'ring-2 ring-fuchsia-500' : ''}`}
+									style={{ height: `${height}px` }}>
+									{position && <span class="text-[10px] mb-1">{position}</span>}
+								</div>
+
+								<p class="text-[10px] text-slate-400">R{race.round}</p>
+								{isFast && <p class="text-[9px] text-fuchsia-300">FL</p>}
+							</div>
+						);
+					})}
+				</div>
+			)
+		}
+	</section>
+
+	<!-- RESULTADOS DETALLADOS -->
 	<section>
-		<h2 class="mb-2 text-lg font-semibold tracking-tight sm:text-xl">
-			Resultados del piloto
-		</h2>
+		<h2 class="text-lg font-semibold mb-2">Resultados del piloto</h2>
 
 		{
 			driverRaces.length === 0 ? (
-				<p class="text-sm text-slate-400">
-					Aún no hay resultados registrados para este piloto.
-				</p>
+				<p class="text-sm text-slate-400">No hay resultados cargados.</p>
 			) : (
-				<div class="space-y-3 text-xs">
+				<div class="space-y-3">
 					{driverRaces.map((race) => {
 						const podiumPos = race.podium.find((p) => p.driverId === driver.id);
-						const isFastest = race.fastestLap.driverId === driver.id;
+						const isFastest = race.fastestLap?.driverId === driver.id;
 
 						return (
-							<article class="rounded-lg border border-slate-800 bg-[#0b0b19] p-3">
-								<div class="flex flex-wrap items-center justify-between gap-2">
+							<article class="p-3 rounded-lg border border-slate-800 bg-[#0b0b19] hover:border-fuchsia-500/40">
+								<div class="flex justify-between">
 									<div>
-										<p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+										<p class="text-[11px] text-slate-400 uppercase">
 											Ronda {race.round}
 										</p>
-										<p class="text-sm font-medium text-slate-100">
-											{race.track}
-										</p>
+										<p class="text-sm text-slate-100">{race.track}</p>
 									</div>
-									<p class="text-[11px] text-slate-400">
-										{new Date(race.date).toLocaleDateString('es-PY', {
-											day: '2-digit',
-											month: 'short',
-											year: 'numeric',
-										})}
-									</p>
+
+									<div class="text-xs text-slate-400">
+										<p>
+											{new Date(race.date).toLocaleDateString('es-PY', {
+												day: '2-digit',
+												month: 'short',
+												year: 'numeric',
+											})}
+										</p>
+										{race.layout && <p>Layout: {race.layout}</p>}
+									</div>
 								</div>
 
-								<div class="mt-2 flex flex-wrap items-center gap-3">
+								<div class="mt-2 flex flex-wrap gap-3">
 									{podiumPos && (
-										<span class="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-medium text-slate-200">
-											Posición final:
-											<span class="ml-1 font-semibold">
-												{podiumPos.position}°
-											</span>
+										<span class="bg-slate-900 px-3 py-1 text-[11px] rounded-full">
+											Posición: <strong>{podiumPos.position}°</strong>
 										</span>
 									)}
 
 									{isFastest && (
-										<span class="inline-flex items-center gap-1 rounded-full bg-purple-900/60 px-3 py-1 text-[11px] font-semibold text-purple-200">
-											<span class="h-2 w-2 rounded-full bg-purple-300" />
+										<span class="bg-purple-900/60 px-3 py-1 text-[11px] rounded-full text-purple-200">
 											Fastest Lap · {race.fastestLap.time}
 										</span>
 									)}
@@ -202,40 +305,34 @@ const driverRaces = races.filter((race) => {
 		}
 	</section>
 
-	{/* MODAL */}
+	<!-- LIGHTBOX -->
 	<div
 		id="lightbox-driver"
-		class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 p-4 cursor-zoom-out">
+		class="fixed inset-0 bg-black/90 hidden items-center justify-center z-50 p-4">
 		<img
 			id="lightbox-driver-img"
-			class="max-h-[90vh] max-w-[90vw] rounded-xl shadow-lg"
-			alt="Foto ampliada"
+			class="max-h-[90vh] max-w-[90vw] rounded-xl shadow-xl"
 		/>
 	</div>
 
 	<script>
-		if (typeof window !== 'undefined') {
-			window.addEventListener('DOMContentLoaded', () => {
-				const btn = document.getElementById('driver-photo');
-				const lb = document.getElementById('lightbox-driver');
-				const img = document.getElementById('lightbox-driver-img');
+		document.addEventListener('DOMContentLoaded', () => {
+			const btn = document.getElementById('driver-photo');
+			const lb = document.getElementById('lightbox-driver');
+			const img = document.getElementById('lightbox-driver-img');
+			if (!btn || !lb || !img) return;
 
-				if (!btn || !lb || !img) return;
-
-				btn.addEventListener('click', () => {
-					const src = btn.getAttribute('data-src');
-					img.src = src;
-					lb.classList.remove('hidden');
-					lb.classList.add('flex');
-					document.body.classList.add('overflow-hidden');
-				});
-
-				lb.addEventListener('click', () => {
-					lb.classList.add('hidden');
-					lb.classList.remove('flex');
-					document.body.classList.remove('overflow-hidden');
-				});
+			btn.addEventListener('click', () => {
+				img.src = btn.dataset.src;
+				lb.classList.remove('hidden');
+				lb.classList.add('flex');
+				document.body.classList.add('overflow-hidden');
 			});
-		}
+
+			lb.addEventListener('click', () => {
+				lb.classList.add('hidden');
+				document.body.classList.remove('overflow-hidden');
+			});
+		});
 	</script>
 </MainLayout>

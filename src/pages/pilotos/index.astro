@@ -2,64 +2,133 @@
 import MainLayout from '../../layouts/MainLayout.astro';
 import { drivers } from '../../lib/data';
 
-// opcional: ordenarlos por número o nombre
-const sortedDrivers = [...drivers].sort((a, b) => a.number - b.number);
+// Orden para mostrar categorías
+const categoryOrder = ['Pro', 'Evo', 'Academy', 'Rookie', 'Titan', ''];
+
+// Colores por categoría
+const categoryColors = {
+	Pro: "bg-yellow-500 text-black border-yellow-300",
+	Evo: "bg-orange-500 text-black border-orange-300",
+	Academy: "bg-pink-500 text-black border-pink-300",
+	Rookie: "bg-emerald-500 text-black border-emerald-300",
+	Titan: "bg-slate-400 text-black border-slate-300",
+};
+
+const sortedDrivers = [...drivers].sort((a, b) => {
+	const idxA = categoryOrder.indexOf(a.category ?? '');
+	const idxB = categoryOrder.indexOf(b.category ?? '');
+	if (idxA !== idxB) return idxA - idxB;
+
+	if (a.number && b.number && a.number !== b.number) {
+		return a.number - b.number;
+	}
+
+	return a.name.localeCompare(b.name);
+});
 ---
 
 <MainLayout
 	title="Pilotos · Pericos"
-	description="Conocé a todos los pilotos"
-	image="/pericos.jpg"
+	description="Conocé a todos los pilotos de la Pericos Karting League."
+	image="/og-pilotos.jpg"
 	path="/pilotos"
-/>
-<section class="mb-6">
-	<h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">Pilotos</h1>
-	<p class="mt-2 text-sm text-slate-300">
-		Lista de todos los pilotos de la liga amateur, cada uno con su ficha y
-		resultados individuales.
-	</p>
-</section>
+>
+	<section class="mb-8">
+		<p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+			Pericos Karting League
+		</p>
+		<h1 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+			Pilotos
+		</h1>
+		<p class="mt-2 text-sm text-slate-300">
+			La pole es buena… pero la amistad es mejor. 🏁💜🏎️
+		</p>
+	</section>
 
-<section class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-	{
-		sortedDrivers.map((d) => (
-			<a
-				href={`/pilotos/${d.id}`}
-				class="group flex flex-col overflow-hidden rounded-xl border border-slate-800 bg-[#0b0b19] hover:border-fuchsia-500/70 hover:bg-slate-900/80 transition">
-				{d.photo && (
-					<div class="aspect-[16/10] overflow-hidden">
-						<img
-							src={d.photo}
-							alt={d.name}
-							class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-							loading="lazy"
-						/>
-					</div>
-				)}
-				<div class="flex flex-1 flex-col gap-1 px-3 py-3">
-					<div class="flex items-center justify-between text-xs text-slate-400">
-						<span class="inline-flex items-center gap-1">
-							<span class="h-2 w-2 rounded-full bg-emerald-500" />
-							{d.team}
-						</span>
-						<span class="font-mono text-[11px] text-slate-500">
-							#{d.number}
-						</span>
-					</div>
-					<p class="text-sm font-semibold text-slate-100">{d.name}</p>
-					{(d.city || d.country) && (
-						<p class="text-[11px] text-slate-400">
-							{d.city && `${d.city} · `}
-							{d.country}
-						</p>
-					)}
-					{d.helmetColor && (
-						<p class="mt-1 line-clamp-2 text-[11px] text-slate-400">
-							Casco: {d.helmetColor}
-						</p>
-					)}
-				</div>
-			</a>
-		))
-	}
-</section>
+	<section class="space-y-5">
+		<!-- GRID -->
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+			{sortedDrivers.map((driver) => {
+				const badgeClass = categoryColors[driver.category] ?? "bg-slate-600 text-white";
+
+				return (
+					<a
+						href={`/pilotos/${driver.id}`}
+						class="group flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-[#050515] shadow-lg shadow-slate-950/40 transition-transform duration-200 hover:-translate-y-1 hover:border-fuchsia-500/60 hover:shadow-fuchsia-500/20"
+					>
+						<!-- FOTO -->
+						<div class="relative h-40 w-full overflow-hidden bg-slate-900/80">
+							{driver.photo ? (
+								<img
+									src={driver.photo}
+									alt={driver.name}
+									class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+									loading="lazy"
+								/>
+							) : (
+								<div class="flex h-full w-full items-center justify-center text-xs text-slate-500">
+									Sin foto
+								</div>
+							)}
+
+							<!-- Badge de categoría -->
+							{driver.category && (
+								<span
+									class={`absolute left-2 top-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badgeClass}`}
+								>
+									{driver.category}
+								</span>
+							)}
+						</div>
+
+						<!-- CONTENIDO -->
+						<div class="flex flex-1 flex-col px-3 py-3">
+							<div class="mb-1 flex items-baseline justify-between gap-2">
+								<div class="flex items-baseline gap-2">
+									{driver.number && (
+										<span class="font-mono text-lg font-bold text-fuchsia-400 drop-shadow-[0_0_10px_rgba(244,114,182,0.6)]">
+											{driver.number}
+										</span>
+									)}
+									<h2 class="text-sm font-semibold text-slate-50">
+										{driver.name}
+									</h2>
+								</div>
+							</div>
+
+							{driver.team && (
+								<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+									{driver.team}
+								</p>
+							)}
+
+							{driver.city && (
+								<p class="mt-1 text-[11px] text-slate-400">
+									{driver.city}
+								</p>
+							)}
+
+							{driver.bio && (
+								<p class="mt-2 line-clamp-2 text-xs text-slate-300">
+									{driver.bio}
+								</p>
+							)}
+
+							<div class="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+								<span class="inline-flex items-center gap-1">
+									<span class="h-1 w-4 rounded-full bg-gradient-to-r from-fuchsia-500 via-purple-400 to-sky-400" />
+									<span>Piloto</span>
+								</span>
+								<span class="text-[10px] uppercase tracking-wide text-fuchsia-300 group-hover:text-fuchsia-200">
+									Ver perfil →
+								</span>
+							</div>
+						</div>
+					</a>
+				);
+			})}
+		</div>
+
+		
+	</section>
+</MainLayout>

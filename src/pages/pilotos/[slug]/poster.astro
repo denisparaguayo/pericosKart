@@ -1,0 +1,375 @@
+---
+import { site } from '../../../lib/site';
+import { drivers, races, getDriverById } from '../../../lib/data';
+
+export function getStaticPaths() {
+	return drivers.map((driver) => ({
+		params: { slug: driver.id },
+	}));
+}
+
+const { slug } = Astro.params;
+const driver = slug ? getDriverById(slug) : undefined;
+
+if (!driver) {
+	throw new Error('Piloto no encontrado');
+}
+
+// Colores por categoría
+const categoryColorMap: Record<string, string> = {
+	Pro: '#facc15', // amarillo
+	Evo: '#fb923c', // naranja
+	Academy: '#f472b6', // rosa
+	Rookie: '#22c55e', // verde
+	Titan: '#9ca3af', // gris
+};
+
+const categoryColor = driver?.category
+	? (categoryColorMap[driver.category] ?? '#a855f7')
+	: '#a855f7';
+
+// Carreras donde aparece este piloto
+const driverRaces = races.filter((race) => {
+	const onPodium = race.podium.some((p) => p.driverId === driver.id);
+	const isFastest = race.fastestLap?.driverId === driver.id;
+	return onPodium || isFastest;
+});
+
+// Stats
+const podiums = driverRaces
+	.map((race) => {
+		const p = race.podium.find((p) => p.driverId === driver.id);
+		return p ? p.position : null;
+	})
+	.filter(Boolean) as number[];
+
+const stats = {
+	totalRaces: driverRaces.length,
+	totalPodiums: podiums.length,
+	totalWins: podiums.filter((x) => x === 1).length,
+	totalFastest: driverRaces.filter(
+		(race) => race.fastestLap?.driverId === driver.id
+	).length,
+	bestPos: podiums.length ? Math.min(...podiums) : null,
+};
+
+const profileUrl = `${site.url}/pilotos/${driver.id}`;
+
+// URL del QR como imagen (servicio externo)
+const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(
+	profileUrl
+)}`;
+---
+
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<title>Poster · {driver.name}</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<style>
+			body {
+				margin: 0;
+				padding: 24px;
+				background: #02010a;
+				font-family: system-ui, sans-serif;
+				color: #f9fafb;
+				display: flex;
+				justify-content: center;
+			}
+
+			.poster {
+				width: 100%;
+				max-width: 680px;
+				background: radial-gradient(circle at top, #4c0a7a 0%, #05010d 55%);
+				border-radius: 18px;
+				border: 1px solid rgba(168, 85, 247, 0.3);
+				box-shadow: 0 0 40px rgba(168, 85, 247, 0.5);
+				padding: 20px 20px 32px;
+				animation: fadein 0.4s ease-out;
+			}
+
+			@keyframes fadein {
+				from {
+					opacity: 0;
+					transform: translateY(10px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			.photo {
+				width: 100%;
+				height: 360px;
+				overflow: hidden;
+				border-radius: 14px;
+				border: 2px solid #6b21a8;
+				box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+				margin-bottom: 20px;
+				background: #020617;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: #6b7280;
+				font-size: 13px;
+			}
+
+			.photo img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+
+			.number {
+				font-size: 4rem;
+				font-weight: 900;
+				color: #f472b6;
+				text-shadow: 0 0 20px rgba(244, 114, 182, 0.6);
+				line-height: 1;
+			}
+
+			.name {
+				font-size: 2.2rem;
+				font-weight: 800;
+			}
+
+			.team-tag {
+				margin-top: 8px;
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				border-radius: 999px;
+				background: rgba(15, 23, 42, 0.7);
+				border: 1px solid rgba(168, 85, 247, 0.5);
+				padding: 6px 14px;
+				font-size: 11px;
+				text-transform: uppercase;
+				letter-spacing: 0.16em;
+			}
+
+			.team-dot {
+				width: 14px;
+				height: 4px;
+				border-radius: 999px;
+				background: linear-gradient(90deg, #f472b6, #a855f7, #38bdf8);
+			}
+
+			.meta {
+				margin-top: 6px;
+				font-size: 14px;
+				opacity: 0.85;
+			}
+
+			.category-wrap {
+				margin-top: 6px;
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				font-size: 12px;
+			}
+
+			.category-pill {
+				border-radius: 999px;
+				padding: 4px 10px;
+				font-size: 11px;
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.14em;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+			}
+
+			.category-dot {
+				width: 10px;
+				height: 10px;
+				border-radius: 999px;
+				background: #020617;
+				opacity: 0.9;
+			}
+
+			.bio {
+				margin-top: 14px;
+				font-size: 15px;
+				line-height: 1.4;
+				color: #e5e7eb;
+			}
+
+			.section-title {
+				margin-top: 26px;
+				font-size: 14px;
+				text-transform: uppercase;
+				letter-spacing: 0.18em;
+				color: #d1d5db;
+			}
+
+			.stats-grid {
+				margin-top: 14px;
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 12px;
+			}
+
+			.stat-box {
+				background: rgba(15, 23, 42, 0.7);
+				border: 1px solid rgba(148, 163, 184, 0.4);
+				border-radius: 10px;
+				padding: 10px 8px;
+				text-align: center;
+			}
+
+			.stat-label {
+				font-size: 10px;
+				color: #9ca3af;
+				text-transform: uppercase;
+				letter-spacing: 0.16em;
+			}
+
+			.stat-value {
+				font-size: 20px;
+				margin-top: 6px;
+				font-weight: 700;
+			}
+
+			.qr {
+				margin-top: 26px;
+				text-align: center;
+			}
+
+			.qr p {
+				font-size: 12px;
+				text-transform: uppercase;
+				letter-spacing: 0.14em;
+				color: #d1d5db;
+				margin-bottom: 8px;
+			}
+
+			.qr img {
+				display: inline-block;
+				padding: 6px;
+				background: rgba(15, 23, 42, 0.9);
+				border-radius: 12px;
+			}
+
+			.footer-note {
+				margin-top: 16px;
+				font-size: 11px;
+				text-align: center;
+				color: #9ca3af;
+			}
+
+			@media print {
+				body {
+					padding: 0;
+					background: white;
+				}
+				.poster {
+					border-radius: 0;
+					box-shadow: none;
+				}
+			}
+		</style>
+	</head>
+
+	<body>
+		<!-- aplicamos color de categoría al borde y glow -->
+		<div
+			class="poster"
+			style={`border-color:${categoryColor}; box-shadow:0 0 40px ${categoryColor}55;`}>
+			<!-- FOTO -->
+			<div
+				class="photo"
+				style={`border-color:${categoryColor}; box-shadow:0 0 20px ${categoryColor}66;`}>
+				{
+					driver.photo ? (
+						<img src={driver.photo} alt={driver.name} />
+					) : (
+						<span>Sin foto disponible</span>
+					)
+				}
+			</div>
+
+			<!-- NÚMERO + NOMBRE -->
+			{driver.number && <div class="number">#{driver.number}</div>}
+			<div class="name">{driver.name}</div>
+
+			<!-- TEAM -->
+			{
+				driver.team && (
+					<div class="team-tag">
+						<span class="team-dot" />
+						{driver.team}
+					</div>
+				)
+			}
+
+			<!-- CIUDAD -->
+			{driver.city && <p class="meta">{driver.city}</p>}
+
+			<!-- CATEGORÍA CON COLOR -->
+			{
+				driver.category && (
+					<div class="category-wrap">
+						<span
+							class="category-pill"
+							style={`background:${categoryColor}; color:#020617; border:1px solid #e5e7eb55;`}>
+							<span class="category-dot" />
+							{driver.category}
+						</span>
+					</div>
+				)
+			}
+
+			<!-- BIO -->
+			{driver.bio && <p class="bio">{driver.bio}</p>}
+
+			<!-- STATS -->
+			<h3 class="section-title">Estadísticas</h3>
+
+			<div class="stats-grid">
+				<div class="stat-box">
+					<div class="stat-label">Carreras</div>
+					<div class="stat-value">{stats.totalRaces}</div>
+				</div>
+
+				<div class="stat-box">
+					<div class="stat-label">Podios</div>
+					<div class="stat-value">{stats.totalPodiums}</div>
+				</div>
+
+				<div class="stat-box">
+					<div class="stat-label">Victorias</div>
+					<div class="stat-value" style="color:#fcd34d;">
+						{stats.totalWins}
+					</div>
+				</div>
+
+				<div class="stat-box">
+					<div class="stat-label">Fastest lap</div>
+					<div class="stat-value" style="color:#f472b6;">
+						{stats.totalFastest}
+					</div>
+				</div>
+
+				<div class="stat-box">
+					<div class="stat-label">Mejor pos.</div>
+					<div class="stat-value" style="color:#4ade80;">
+						{stats.bestPos ?? '-'}
+					</div>
+				</div>
+			</div>
+
+			<!-- QR -->
+			<div class="qr">
+				<p>Ver perfil online</p>
+				<img src={qrImageUrl} alt="QR perfil piloto" width="130" height="130" />
+			</div>
+
+			<div class="footer-note">
+				{site.name} · La pole es buena… pero la amistad es mejor. 🏁💜🏎️
+			</div>
+		</div>
+	</body>
+</html>
