@@ -1,18 +1,19 @@
 ---
 import MainLayout from '../../layouts/MainLayout.astro';
-import { drivers } from '../../lib/data';
+import {
+	DRIVER_CATEGORY_ORDER,
+	drivers,
+	getCategoryBadgeClass,
+} from '../../lib/data';
 
-// Orden para mostrar categorías
-const categoryOrder = ['Pro', 'Evo', 'Academy', 'Rookie', 'Titan', ''];
-
-// Colores por categoría
-const categoryColors = {
-	Pro: "bg-yellow-500 text-black border-yellow-300",
-	Evo: "bg-orange-500 text-black border-orange-300",
-	Academy: "bg-pink-500 text-black border-pink-300",
-	Rookie: "bg-emerald-500 text-black border-emerald-300",
-	Titan: "bg-slate-400 text-black border-slate-300",
-};
+// Orden para mostrar categorias (agregamos string vacio para pilotos sin categoria)
+const categoryOrder = [...DRIVER_CATEGORY_ORDER, ''];
+const hasUncategorized = drivers.some((d) => !d.category);
+const filterCategories = [
+	'Todos',
+	...DRIVER_CATEGORY_ORDER,
+	...(hasUncategorized ? ['Sin categoria'] : []),
+];
 
 const sortedDrivers = [...drivers].sort((a, b) => {
 	const idxA = categoryOrder.indexOf(a.category ?? '');
@@ -28,8 +29,8 @@ const sortedDrivers = [...drivers].sort((a, b) => {
 ---
 
 <MainLayout
-	title="Pilotos · Pericos"
-	description="Conocé a todos los pilotos de la Pericos Karting League."
+	title="Pilotos | Pericos"
+	description="Conoce a todos los pilotos de la Pericos Karting League."
 	image="/og-pilotos.jpg"
 	path="/pilotos"
 >
@@ -41,20 +42,45 @@ const sortedDrivers = [...drivers].sort((a, b) => {
 			Pilotos
 		</h1>
 		<p class="mt-2 text-sm text-slate-300">
-			La pole es buena… pero la amistad es mejor. 🏁💜🏎️
+			La pole es buena, pero la amistad es mejor.
 		</p>
 	</section>
 
 	<section class="space-y-5">
+		<!-- FILTRO POR CATEGORIA -->
+		<div class="flex flex-wrap gap-2 rounded-xl border border-slate-800 bg-[#050515] p-3 text-[11px] uppercase tracking-wide">
+			<p class="text-slate-400 font-semibold">Filtrar:</p>
+			<div class="flex flex-wrap gap-2">
+				{filterCategories.map((cat, idx) => {
+					const value =
+						cat === 'Todos'
+							? 'todos'
+							: cat === 'Sin categoria'
+								? 'none'
+								: cat;
+
+					return (
+						<button
+							class="filter-btn inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-slate-200 transition-colors hover:border-fuchsia-500/70 hover:text-fuchsia-200"
+							data-filter={value}
+							data-active={idx === 0 ? 'true' : 'false'}>
+							{cat}
+						</button>
+					);
+				})}
+			</div>
+		</div>
+
 		<!-- GRID -->
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 			{sortedDrivers.map((driver) => {
-				const badgeClass = categoryColors[driver.category] ?? "bg-slate-600 text-white";
+				const badgeClass = getCategoryBadgeClass(driver.category);
 
 				return (
 					<a
 						href={`/pilotos/${driver.id}`}
-						class="group flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-[#050515] shadow-lg shadow-slate-950/40 transition-transform duration-200 hover:-translate-y-1 hover:border-fuchsia-500/60 hover:shadow-fuchsia-500/20"
+						class="driver-card group flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-[#050515] shadow-lg shadow-slate-950/40 transition-transform duration-200 hover:-translate-y-1 hover:border-fuchsia-500/60 hover:shadow-fuchsia-500/20"
+						data-category={driver.category ?? 'none'}
 					>
 						<!-- FOTO -->
 						<div class="relative h-40 w-full overflow-hidden bg-slate-900/80">
@@ -71,7 +97,7 @@ const sortedDrivers = [...drivers].sort((a, b) => {
 								</div>
 							)}
 
-							<!-- Badge de categoría -->
+							<!-- Badge de categoria -->
 							{driver.category && (
 								<span
 									class={`absolute left-2 top-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badgeClass}`}
@@ -120,7 +146,7 @@ const sortedDrivers = [...drivers].sort((a, b) => {
 									<span>Piloto</span>
 								</span>
 								<span class="text-[10px] uppercase tracking-wide text-fuchsia-300 group-hover:text-fuchsia-200">
-									Ver perfil →
+									Ver perfil »
 								</span>
 							</div>
 						</div>
@@ -128,7 +154,56 @@ const sortedDrivers = [...drivers].sort((a, b) => {
 				);
 			})}
 		</div>
-
-		
 	</section>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			const buttons = Array.from(
+				document.querySelectorAll('[data-filter]')
+			);
+			const cards = Array.from(
+				document.querySelectorAll('[data-category]')
+			);
+
+			const setActive = (value) => {
+				buttons.forEach((btn) => {
+					const isActive = btn.dataset.filter === value;
+					btn.dataset.active = isActive ? 'true' : 'false';
+
+					btn.classList.toggle('bg-fuchsia-600', isActive);
+					btn.classList.toggle('border-fuchsia-500', isActive);
+					btn.classList.toggle('text-white', isActive);
+
+					btn.classList.toggle('bg-slate-900/60', !isActive);
+					btn.classList.toggle('border-slate-800', !isActive);
+					btn.classList.toggle('text-slate-200', !isActive);
+				});
+			};
+
+			const applyFilter = (value) => {
+				setActive(value);
+				cards.forEach((card) => {
+					const cat = card.dataset.category || 'none';
+					const shouldShow =
+						value === 'todos' ||
+						(value === 'none' && cat === 'none') ||
+						cat === value;
+
+					card.classList.toggle('hidden', !shouldShow);
+				});
+			};
+
+			buttons.forEach((btn) => {
+				btn.addEventListener('click', () => {
+					applyFilter(btn.dataset.filter || 'todos');
+				});
+			});
+
+			// Estado inicial
+			const initial =
+				document.querySelector('[data-filter][data-active="true"]')
+					?.dataset.filter || 'todos';
+			applyFilter(initial);
+		});
+	</script>
 </MainLayout>

@@ -1,21 +1,18 @@
 // src/lib/data.ts
+// Mantiene las exportaciones "públicas" originales pero delega la data de pilotos
+// a un módulo dedicado (src/lib/drivers/*) para hacerla modular por categoría.
 
-// =======================
-// TIPOS
-// =======================
-
-export type Driver = {
-	id: string;
-	name: string;
-	number?: number;
-	team?: string;
-	city?: string;
-	helmetColor?: string;
-	photo?: string;
-	bio?: string;
-	drivingStyle?: string;
-	category?: string;
-};
+import {
+	DRIVER_CATEGORY_BADGE,
+	DRIVER_CATEGORY_HEX,
+	DRIVER_CATEGORY_ORDER,
+	drivers,
+	driversByCategory,
+	getCategoryBadgeClass,
+	getCategoryHexColor,
+	getDriverById,
+} from './drivers/index.ts';
+import type { Driver, DriverCategory } from './drivers/index.ts';
 
 export type PodiumPosition = {
 	position: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
@@ -33,171 +30,6 @@ export type RaceResult = {
 	fastestLap: { driverId: string; time: string } | null;
 	podium: PodiumPosition[];
 };
-
-// =======================
-// PILOTOS
-// =======================
-
-export const drivers: Driver[] = [
-	// PRO
-	{
-		id: 'giovanni-crichigno',
-		name: 'Giovanni Crichigno',
-		number: 16,
-		team: 'Moñai Driff',
-		city: 'Mariano Roque Alonso',
-		helmetColor: 'lila y Blanco',
-		photo: '/pilotos/giovanni-crichigno.jpg',
-		bio: '',
-		category: 'Pro',
-	},
-	{
-		id: 'luciano-amarilla',
-		name: 'Luciano Amarilla',
-		number: 3,
-		team: 'Mbarete Racing',
-		city: 'Asunción',
-		helmetColor: 'Fibra de Carbono, Naranja, Gris y Negro',
-		photo: '/pilotos/luciano-amarilla.jpeg',
-		bio: 'Sin miedo, ambicioso.',
-		category: 'Pro',
-	},
-
-	// EVO
-	{
-		id: 'eduardo-aguilera',
-		name: 'Eduardo Aguilera',
-		number: 666,
-		team: "E'A Racing",
-		city: 'Asunción',
-		helmetColor: 'Rojo',
-		photo: '/pilotos/edu-aguilera.jpg',
-		bio: 'Seco y Peligroso, en busca de la felicidad, rápido y furioso.',
-		category: 'Evo',
-	},
-	{
-		id: 'willian-benitez',
-		name: 'Willian Benítez',
-		number: 15,
-		team: 'Moñai Driff',
-		city: 'Mariano Roque Alonso',
-		helmetColor: 'lila y Blanco',
-		photo: '/pilotos/willian-benitez.jpg',
-		bio: '',
-		category: 'Evo',
-	},
-
-	// ACADEMY
-	{
-		id: 'monse-aranda',
-		name: 'Monse Aranda',
-		number: 10,
-		team: 'Woman in Command',
-		city: 'Lambaré',
-		helmetColor: 'Rosa y Negro',
-		photo: '/pilotos/monse-aranda.jpg',
-		bio: '',
-		category: 'Academy',
-	},
-	{
-		id: 'arami-garcete',
-		name: 'Arami Garcete',
-		number: 7,
-		team: 'HyA',
-		city: 'Yaguarón',
-		helmetColor: 'Lila y Rosa',
-		photo: '/pilotos/arami.jpg',
-		bio: '',
-		category: 'Academy',
-	},
-	{
-		id: 'pao-irala',
-		name: 'Pao Irala',
-		number: 33,
-		team: 'H&A',
-		city: 'Capiatá – Caacupé',
-		helmetColor: 'Negro y Lila',
-		photo: '/pilotos/pao-irala.jpg',
-		bio: "You shouldn't speak without knowing.",
-		category: 'Academy',
-	},
-
-	// ROOKIE
-	{
-		id: 'denis-cantero',
-		name: 'Denis R. Cantero',
-		number: 71,
-		team: 'Mbarete Racing',
-		city: 'Asunción',
-		helmetColor: 'Naranja y Negro',
-		photo: '/pilotos/denis-cantero.jpg',
-		bio: 'Explosivo en las primeras vueltas, no le tiene miedo a nadie.',
-		category: 'Rookie',
-	},
-	{
-		id: 'francisco-candia',
-		name: 'Francisco Candia',
-		number: 17,
-		team: 'Sin Equipo',
-		city: 'Asunción',
-		helmetColor: '',
-		photo: '/pilotos/francisco-candia.jpg',
-		bio: '',
-		category: 'Rookie',
-	},
-	{
-		id: 'francisco-rios',
-		name: 'Francisco Ríos',
-		number: 13,
-		team: 'Hakembo',
-		city: 'Luque',
-		helmetColor: '',
-		photo: '/pilotos/francisco-rios.jpg',
-		bio: '',
-		category: 'Rookie',
-	},
-	{
-		id: 'noel-perez',
-		name: 'Noel Perez',
-		number: 520,
-		team: 'Mad Max',
-		city: 'Asunción',
-		helmetColor: 'Negro, dorado, blanco',
-		photo: '/pilotos/noel-perez.jpg',
-		bio: 'Lo único imposible es aquello que no lo intentas.',
-		category: 'Rookie',
-	},
-
-	// TITAN
-	{
-		id: 'fran-servin',
-		name: 'Francisco Servín',
-		number: 0,
-		team: 'Hakembo',
-		city: 'Fernando de la Mora',
-		helmetColor: '',
-		photo: '/pilotos/fran-servin.jpg',
-		bio: '',
-		category: 'Titan',
-	},
-
-	// EXTRA (sin resultados aún)
-	{
-		id: 'carlos-davalos',
-		name: 'Carlos Dávalos',
-		number: 27,
-		team: 'CDR',
-		city: 'Luque',
-		helmetColor: '',
-		photo: '/pilotos/carlos-davalos.jpg',
-		bio: '',
-		category: 'Rookie',
-	},
-];
-
-// =======================
-// CARRERAS
-// =======================
 
 export const races: RaceResult[] = [
 	// FECHA 1 – Super Kart
@@ -283,11 +115,10 @@ export const races: RaceResult[] = [
 		track: 'Karting Club Paraguayo',
 		layout: 'Oficial',
 		fastestLap: {
-			driverId: 'denis-cantero',
-			time: '29.140',
+			driverId: 'giovanni-crichigno',
+			time: '40.100',
 		},
 		podium: [
-			// ojo que acá rookie tiene mejores tiempos que Pro/Evo
 			{ position: 1, driverId: 'denis-cantero', time: '41.163' },
 			{ position: 1, driverId: 'giovanni-crichigno', time: '40.100' },
 			{ position: 4, driverId: 'luciano-amarilla', time: '40.199' },
@@ -311,14 +142,6 @@ export const races: RaceResult[] = [
 		podium: [],
 	},
 ];
-
-// =======================
-// HELPERS
-// =======================
-
-export function getDriverById(id: string): Driver | undefined {
-	return drivers.find((d) => d.id === id);
-}
 
 // Mejor tiempo absoluto de un piloto en todas las carreras
 export function getBestLapForDriver(driverId: string): {
@@ -360,3 +183,17 @@ export function getBestLapForDriver(driverId: string): {
 		round: best.round,
 	};
 }
+
+// Re-export útil para no romper imports existentes y tener helpers centralizados
+export {
+	drivers,
+	driversByCategory,
+	getDriverById,
+	getCategoryBadgeClass,
+	getCategoryHexColor,
+	DRIVER_CATEGORY_BADGE,
+	DRIVER_CATEGORY_HEX,
+	DRIVER_CATEGORY_ORDER,
+};
+
+export type { Driver, DriverCategory };

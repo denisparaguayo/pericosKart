@@ -1,6 +1,11 @@
 ---
 import { site } from '../../../lib/site';
-import { drivers, races, getDriverById } from '../../../lib/data';
+import {
+	drivers,
+	getCategoryHexColor,
+	getDriverById,
+	races,
+} from '../../../lib/data';
 
 export function getStaticPaths() {
 	return drivers.map((driver) => ({
@@ -15,18 +20,7 @@ if (!driver) {
 	throw new Error('Piloto no encontrado');
 }
 
-// Colores por categoría
-const categoryColorMap: Record<string, string> = {
-	Pro: '#facc15', // amarillo
-	Evo: '#fb923c', // naranja
-	Academy: '#f472b6', // rosa
-	Rookie: '#22c55e', // verde
-	Titan: '#9ca3af', // gris
-};
-
-const categoryColor = driver?.category
-	? (categoryColorMap[driver.category] ?? '#a855f7')
-	: '#a855f7';
+const categoryColor = getCategoryHexColor(driver.category);
 
 // Carreras donde aparece este piloto
 const driverRaces = races.filter((race) => {
@@ -64,7 +58,7 @@ const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&dat
 <html lang="es">
 	<head>
 		<meta charset="utf-8" />
-		<title>Poster · {driver.name}</title>
+		<title>Poster ¶ú {driver.name}</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 		<style>
@@ -274,7 +268,7 @@ const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&dat
 	</head>
 
 	<body>
-		<!-- aplicamos color de categoría al borde y glow -->
+		<!-- aplicamos color de categorÇða al borde y glow -->
 		<div
 			class="poster"
 			style={`border-color:${categoryColor}; box-shadow:0 0 40px ${categoryColor}55;`}>
@@ -291,7 +285,7 @@ const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&dat
 				}
 			</div>
 
-			<!-- NÚMERO + NOMBRE -->
+			<!-- NÇsMERO + NOMBRE -->
 			{driver.number && <div class="number">#{driver.number}</div>}
 			<div class="name">{driver.name}</div>
 
@@ -308,7 +302,7 @@ const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&dat
 			<!-- CIUDAD -->
 			{driver.city && <p class="meta">{driver.city}</p>}
 
-			<!-- CATEGORÍA CON COLOR -->
+			<!-- CATEGORÇ?A CON COLOR -->
 			{
 				driver.category && (
 					<div class="category-wrap">
@@ -326,7 +320,7 @@ const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&dat
 			{driver.bio && <p class="bio">{driver.bio}</p>}
 
 			<!-- STATS -->
-			<h3 class="section-title">Estadísticas</h3>
+			<h3 class="section-title">EstadÇðsticas</h3>
 
 			<div class="stats-grid">
 				<div class="stat-box">
@@ -368,7 +362,7 @@ const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&dat
 			</div>
 
 			<div class="footer-note">
-				{site.name} · La pole es buena… pero la amistad es mejor. 🏁💜🏎️
+				{site.name} la pole es buena, pero la amistad es mejor.
 			</div>
 		</div>
 	</body>

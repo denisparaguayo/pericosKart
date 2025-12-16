@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout.astro";
 import { site } from "../lib/site";
 import { drivers, races, getDriverById } from "../lib/data";
 
-// Ordenar carreras por fecha (más reciente primero)
+// Ordenar carreras por fecha (mas reciente primero)
 const sortedRaces = [...races].sort((a, b) => {
   const da = new Date(a.date).getTime();
   const db = new Date(b.date).getTime();
@@ -13,7 +13,58 @@ const sortedRaces = [...races].sort((a, b) => {
 
 const latestRace = sortedRaces[0];
 
-// Mini podio por categoría para la ÚLTIMA fecha
+// Proximas fechas (>= hoy)
+const today = new Date();
+const upcomingRaces = races
+  .filter((race) => new Date(race.date).getTime() >= today.getTime())
+  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+// Links y datos extra por evento
+const raceExtras: Record<
+  string,
+  {
+    schedule?: string;
+    briefing?: string;
+    fee?: string;
+    notes?: string;
+  }
+> = {
+  "2025-r5-adrena": {
+    schedule: "Domingo 08:30 (Foz)",
+    briefing: "Briefing 08:00, llevar documento para cruce",
+    fee: "Consultar combo con Adrena Kart",
+    notes: "Coordinar transporte y horario de salida desde Asuncion.",
+  },
+  "2025-r4-kcp": {
+    schedule: "Sabado 09:00",
+    briefing: "Briefing en boxes 08:30",
+    fee: "Pagar antes de ingresar a pista",
+  },
+};
+
+const mapLinksCache = new Map<string, { maps: string; waze: string }>();
+function getMapLinks(track: string) {
+  if (mapLinksCache.has(track)) return mapLinksCache.get(track)!;
+  const query = encodeURIComponent(`${track} karting`);
+  const links = {
+    maps: `https://www.google.com/maps/search/?api=1&query=${query}`,
+    waze: `https://waze.com/ul?q=${query}`,
+  };
+  mapLinksCache.set(track, links);
+  return links;
+}
+
+function formatCountdown(dateStr: string) {
+  const diff = new Date(dateStr).getTime() - today.getTime();
+  if (diff <= 0) return "Hoy";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  if (days === 0) return `En ${hours}h`;
+  if (hours === 0) return `En ${days}d`;
+  return `En ${days}d ${hours}h`;
+}
+
+// Mini podio por categoria para la ultima fecha
 type MiniEntry = {
   position: number;
   driverId: string;
@@ -36,7 +87,7 @@ if (latestRace) {
     const driver = getDriverById(entry.driverId);
     if (!driver) continue;
 
-    const cat = driver.category ?? "Sin categoría";
+    const cat = driver.category ?? "Sin categoria";
 
     if (!map.has(cat)) map.set(cat, []);
     map.get(cat)!.push({
@@ -56,7 +107,7 @@ if (latestRace) {
     .sort((a, b) => a.category.localeCompare(b.category));
 }
 
-// Info rápida
+// Info rapida
 const totalDrivers = drivers.length;
 const totalRaces = races.length;
 const totalFastestLaps = races.filter((r) => r.fastestLap?.driverId).length;
@@ -108,6 +159,76 @@ for (const race of races) {
     }
   }
 }
+
+// Top pilotos por victorias y fastest laps
+type Counter = { driverId: string; name: string; count: number; category?: string };
+const winsMap = new Map<string, Counter>();
+const fastestMap = new Map<string, Counter>();
+
+for (const race of races) {
+  for (const pos of race.podium) {
+    if (pos.position !== 1) continue;
+    const d = getDriverById(pos.driverId);
+    if (!d) continue;
+    if (!winsMap.has(d.id)) winsMap.set(d.id, { driverId: d.id, name: d.name, count: 0, category: d.category });
+    winsMap.get(d.id)!.count += 1;
+  }
+  if (race.fastestLap?.driverId) {
+    const d = getDriverById(race.fastestLap.driverId);
+    if (d) {
+      if (!fastestMap.has(d.id)) fastestMap.set(d.id, { driverId: d.id, name: d.name, count: 0, category: d.category });
+      fastestMap.get(d.id)!.count += 1;
+    }
+  }
+}
+
+function sortCounters(map: Map<string, Counter>) {
+  return Array.from(map.values())
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, 4);
+}
+
+const topWins = sortCounters(winsMap);
+const topFastest = sortCounters(fastestMap);
+
+// Records por pista (mejor fastest lap por track)
+function getTrackRecord(track: string) {
+  let record: { time: number; driverId: string; raceId: string; round: number; date: string } | null = null;
+  for (const race of races) {
+    if (race.track !== track || !race.fastestLap?.time) continue;
+    const tNum = parseFloat(race.fastestLap.time);
+    if (!Number.isFinite(tNum)) continue;
+    if (!record || tNum < record.time) {
+      record = { time: tNum, driverId: race.fastestLap.driverId, raceId: race.id, round: race.round, date: race.date };
+    }
+  }
+  if (!record) return null;
+  const driver = getDriverById(record.driverId);
+  return {
+    time: record.time.toFixed(3),
+    driverName: driver?.name ?? "Desconocido",
+    date: record.date,
+    round: record.round,
+  };
+}
+
+const circuits = Array.from(new Set(races.map((r) => r.track))).map((track) => {
+  const record = getTrackRecord(track);
+  return {
+    track,
+    record,
+  };
+});
+
+// Changelog / novedades
+const changelog = [
+  { date: "2025-12-16", text: "Seccion de proximas fechas con countdown, mapas y notas." },
+  { date: "2025-12-12", text: "Posters por piloto y filtro de categorias en listado de pilotos." },
+  { date: "2025-12-10", text: "Resultados generales y mini podio por categoria." },
+];
 ---
 
 <MainLayout
@@ -118,24 +239,22 @@ for (const race of races) {
 >
   <!-- HERO -->
   <section class="mb-10 grid gap-6 md:grid-cols-[1.6fr,1fr] items-start">
-    <div>
-      <p class="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
-        Liga amateur · Karting
+    <div class="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-[#0b0f24] via-[#0a0018] to-[#001028] p-6 shadow-[0_0_60px_rgba(15,23,42,0.9)]">
+      <div class="absolute inset-0 opacity-40 blur-3xl" style="background: radial-gradient(circle at 20% 20%, rgba(236,72,153,0.35), transparent 35%), radial-gradient(circle at 80% 30%, rgba(56,189,248,0.35), transparent 35%);"></div>
+      <p class="relative text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
+        Liga amateur / Karting
       </p>
-      <h1 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-        La pole es buena…<br class="hidden sm:block" />
+      <h1 class="relative mt-3 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl text-slate-50">
+        La pole es buena,<br class="hidden sm:block" />
         <span class="bg-gradient-to-r from-fuchsia-400 via-purple-400 to-sky-400 bg-clip-text text-transparent">
           pero la amistad es mejor.
-        </span>{' '}
-        🏁💜🏎️
+        </span>
       </h1>
-      <p class="mt-4 max-w-xl text-sm text-slate-300">
-        Somos un grupo de pilotos amateur de diferentes equipos y categorías,
-        unidos por lo mismo: girar más rápido, pelear rueda a rueda y terminar
-        riéndonos en el box.
+      <p class="relative mt-4 max-w-xl text-sm text-slate-300">
+        Pilotos, podios y vueltas rapidas de la Pericos Karting League. Datos reales, sin puntaje inventado.
       </p>
 
-      <div class="mt-5 flex flex-wrap gap-3 text-xs">
+      <div class="relative mt-5 flex flex-wrap gap-3 text-xs">
         <a
           href="/pilotos"
           class="inline-flex items-center rounded-full bg-fuchsia-600 px-4 py-2 font-medium text-white shadow-[0_0_24px_rgba(244,114,182,0.7)] hover:bg-fuchsia-500 transition-colors"
@@ -143,16 +262,16 @@ for (const race of races) {
           Ver pilotos
         </a>
         <a
-          href="/galeria"
-          class="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 font-medium text-slate-100 hover:border-fuchsia-500/70 hover:text-fuchsia-300 transition-colors"
-        >
-          Galería de fotos
-        </a>
-        <a
           href="/resultados"
           class="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 font-medium text-slate-100 hover:border-fuchsia-500/70 hover:text-fuchsia-300 transition-colors"
         >
           Tabla de resultados
+        </a>
+        <a
+          href="/galeria"
+          class="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 font-medium text-slate-100 hover:border-fuchsia-500/70 hover:text-fuchsia-300 transition-colors"
+        >
+          Galeria de fotos
         </a>
       </div>
     </div>
@@ -183,35 +302,165 @@ for (const race of races) {
           </div>
           <div class="mt-3 border-t border-slate-800 pt-3 text-[11px] text-slate-400">
             <p>
-              Ronda {absoluteFastest.round} · {absoluteFastest.track}
+              Ronda {absoluteFastest.round} / {absoluteFastest.track}
             </p>
             <p class="mt-1">
-              {new Date(absoluteFastest.date).toLocaleDateString('es-PY', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
+              {new Date(absoluteFastest.date).toLocaleDateString("es-PY", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
               })}
             </p>
           </div>
         </>
       ) : (
         <p class="mt-3 text-sm text-slate-400">
-          Todavía no hay vueltas rápidas registradas.
+          Todavia no hay vueltas rapidas registradas.
         </p>
       )}
     </div>
   </section>
 
-  <!-- ÚLTIMA FECHA -->
+  <!-- Highlights rapidos -->
+  <section class="mb-8 grid gap-3 sm:grid-cols-3">
+    <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
+      <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+        Pilotos registrados
+      </p>
+      <p class="mt-2 text-2xl font-semibold text-slate-50">
+        {totalDrivers}
+      </p>
+      <p class="mt-1 text-[11px] text-slate-500">
+        Diferentes equipos y categorias.
+      </p>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
+      <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+        Fechas disputadas
+      </p>
+      <p class="mt-2 text-2xl font-semibold text-slate-50">
+        {totalRaces}
+      </p>
+      <p class="mt-1 text-[11px] text-slate-500">
+        Entre Super Kart, KCP y Brasil.
+      </p>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
+      <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+        Vueltas rapidas registradas
+      </p>
+      <p class="mt-2 text-2xl font-semibold text-fuchsia-300">
+        {totalFastestLaps}
+      </p>
+      <p class="mt-1 text-[11px] text-slate-500">
+        Una por fecha.
+      </p>
+    </div>
+  </section>
+
+  <!-- Proximas fechas -->
+  <section class="mb-10 rounded-2xl border border-slate-800 bg-[#050515] p-4 text-xs">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+          Proximas fechas
+        </p>
+        <p class="mt-1 text-sm font-semibold text-slate-100">
+          Agenda de la liga
+        </p>
+      </div>
+      <p class="text-[11px] text-slate-500">
+        {upcomingRaces.length} fecha{upcomingRaces.length === 1 ? "" : "s"} por delante
+      </p>
+    </div>
+
+    {upcomingRaces.length === 0 ? (
+      <p class="mt-3 text-sm text-slate-400">
+        No hay fechas futuras cargadas. Actualiza el calendario cuando tengas mas info.
+      </p>
+    ) : (
+      <div class="mt-3 grid gap-3 md:grid-cols-2">
+        {upcomingRaces.map((race) => {
+          const links = getMapLinks(race.track);
+          const extra = raceExtras[race.id] ?? {};
+          const countdown = formatCountdown(race.date);
+          return (
+            <article class="rounded-xl border border-slate-800 bg-slate-900/40 p-3 hover:border-fuchsia-500/50 transition-colors">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                    Ronda {race.round}
+                  </p>
+                  <p class="text-sm font-semibold text-slate-100">{race.track}</p>
+                  {race.layout && (
+                    <p class="text-[11px] text-slate-500">Layout: {race.layout}</p>
+                  )}
+                </div>
+                <div class="text-right text-[11px] text-slate-400">
+                  <p class="text-fuchsia-300 font-semibold">{countdown}</p>
+                  <p>
+                    {new Date(race.date).toLocaleDateString("es-PY", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-300">
+                <span class="inline-flex items-center rounded-full bg-slate-800/70 px-3 py-1">
+                  Fastest lap: {race.fastestLap?.driverId ? "registrada" : "pendiente"}
+                </span>
+                <span class="inline-flex items-center rounded-full bg-slate-800/70 px-3 py-1">
+                  Podio: {race.podium.length > 0 ? "cargado" : "pendiente"}
+                </span>
+              </div>
+
+              <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
+                <a
+                  class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1 text-slate-200 hover:border-fuchsia-500 hover:text-fuchsia-200 transition-colors"
+                  href={links.maps}
+                  target="_blank"
+                  rel="noreferrer">
+                  Google Maps
+                </a>
+                <a
+                  class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1 text-slate-200 hover:border-fuchsia-500 hover:text-fuchsia-200 transition-colors"
+                  href={links.waze}
+                  target="_blank"
+                  rel="noreferrer">
+                  Waze
+                </a>
+              </div>
+
+              {(extra.schedule || extra.briefing || extra.fee || extra.notes) && (
+                <div class="mt-3 space-y-1 text-[11px] text-slate-300">
+                  {extra.schedule && <p>Horario: <strong class="text-slate-100">{extra.schedule}</strong></p>}
+                  {extra.briefing && <p>Briefing: {extra.briefing}</p>}
+                  {extra.fee && <p>Costo: {extra.fee}</p>}
+                  {extra.notes && <p class="text-slate-400">Notas: {extra.notes}</p>}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    )}
+  </section>
+
+  <!-- Ultima fecha -->
   {latestRace && (
-    <section class="mb-8 rounded-2xl border border-slate-800 bg-[#050515] p-4 text-xs">
+    <section class="mb-10 rounded-2xl border border-slate-800 bg-[#050515] p-4 text-xs">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-            Última fecha
+            Ultima fecha
           </p>
           <p class="mt-1 text-sm font-semibold text-slate-100">
-            Ronda {latestRace.round} · {latestRace.track}
+            Ronda {latestRace.round} / {latestRace.track}
           </p>
           {latestRace.layout && (
             <p class="text-[11px] text-slate-400">
@@ -221,10 +470,10 @@ for (const race of races) {
         </div>
         <div class="text-right text-xs text-slate-400">
           <p>
-            {new Date(latestRace.date).toLocaleDateString('es-PY', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
+            {new Date(latestRace.date).toLocaleDateString("es-PY", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
             })}
           </p>
         </div>
@@ -245,14 +494,14 @@ for (const race of races) {
                   <div class="flex items-center gap-2">
                     <span
                       class={[
-                        'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold',
-                        entry.position === 1 && 'bg-amber-400 text-slate-900',
-                        entry.position === 2 && 'bg-slate-300 text-slate-900',
-                        entry.position === 3 && 'bg-amber-700 text-slate-50',
-                        entry.position > 3 && 'bg-slate-700 text-slate-100',
+                        "flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold",
+                        entry.position === 1 && "bg-amber-400 text-slate-900",
+                        entry.position === 2 && "bg-slate-300 text-slate-900",
+                        entry.position === 3 && "bg-amber-700 text-slate-50",
+                        entry.position > 3 && "bg-slate-700 text-slate-100",
                       ]
                         .filter(Boolean)
-                        .join(' ')}
+                        .join(" ")}
                     >
                       {entry.position}
                     </span>
@@ -288,7 +537,7 @@ for (const race of races) {
               if (!d) {
                 return (
                   <p class="mt-2 text-xs text-slate-400">
-                    Vuelta rápida registrada sin piloto válido.
+                    Vuelta rapida registrada sin piloto valido.
                   </p>
                 );
               }
@@ -314,7 +563,7 @@ for (const race of races) {
             })()
           ) : (
             <p class="mt-2 text-xs text-slate-400">
-              Todavía no se cargó la vuelta rápida de esta fecha.
+              Todavia no se cargo la vuelta rapida de esta fecha.
             </p>
           )}
         </div>
@@ -322,14 +571,67 @@ for (const race of races) {
     </section>
   )}
 
-  <!-- MINI PODIO POR CATEGORÍA (ÚLTIMA FECHA) -->
+  <!-- Top pilotos -->
+  <section class="mb-10 grid gap-3 md:grid-cols-2">
+    <div class="rounded-2xl border border-slate-800 bg-[#050515] p-4 text-xs">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+        Mas victorias
+      </p>
+      {topWins.length === 0 ? (
+        <p class="mt-2 text-slate-400 text-sm">Sin victorias registradas.</p>
+      ) : (
+        <ol class="mt-2 space-y-2">
+          {topWins.map((d, idx) => (
+            <li class="flex items-center justify-between rounded-lg bg-slate-900/60 px-3 py-2">
+              <div class="flex items-center gap-2">
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-[11px] font-semibold text-slate-200">
+                  {idx + 1}
+                </span>
+                <a href={`/pilotos/${d.driverId}`} class="text-sm font-semibold text-slate-100 hover:text-fuchsia-300">
+                  {d.name}
+                </a>
+              </div>
+              <span class="text-[11px] text-slate-300">{d.count} win{d.count === 1 ? "" : "s"}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+
+    <div class="rounded-2xl border border-slate-800 bg-[#050515] p-4 text-xs">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+        Mas fastest laps
+      </p>
+      {topFastest.length === 0 ? (
+        <p class="mt-2 text-slate-400 text-sm">Sin vueltas rápidas aun.</p>
+      ) : (
+        <ol class="mt-2 space-y-2">
+          {topFastest.map((d, idx) => (
+            <li class="flex items-center justify-between rounded-lg bg-slate-900/60 px-3 py-2">
+              <div class="flex items-center gap-2">
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-[11px] font-semibold text-slate-200">
+                  {idx + 1}
+                </span>
+                <a href={`/pilotos/${d.driverId}`} class="text-sm font-semibold text-slate-100 hover:text-fuchsia-300">
+                  {d.name}
+                </a>
+              </div>
+              <span class="text-[11px] text-slate-300">{d.count} FL</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  </section>
+
+  <!-- Mini podio por categoria (ultima fecha) -->
   {latestRace && miniPodiumByCategory.length > 0 && (
-    <section class="mb-8">
+    <section class="mb-10">
       <h2 class="mb-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
-        Mini podio por categoría · última fecha
+        Mini podio por categoria / ultima fecha
       </h2>
       <p class="mb-3 text-[11px] text-slate-400">
-        Basado en la ronda {latestRace.round} · {latestRace.track}
+        Basado en la ronda {latestRace.round} / {latestRace.track}
       </p>
 
       <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
@@ -344,14 +646,14 @@ for (const race of races) {
                   <div class="flex items-center gap-2">
                     <span
                       class={[
-                        'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold',
-                        e.position === 1 && 'bg-amber-400 text-slate-900',
-                        e.position === 2 && 'bg-slate-300 text-slate-900',
-                        e.position === 3 && 'bg-amber-700 text-slate-50',
-                        e.position > 3 && 'bg-slate-700 text-slate-100',
+                        "flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold",
+                        e.position === 1 && "bg-amber-400 text-slate-900",
+                        e.position === 2 && "bg-slate-300 text-slate-900",
+                        e.position === 3 && "bg-amber-700 text-slate-50",
+                        e.position > 3 && "bg-slate-700 text-slate-100",
                       ]
                         .filter(Boolean)
-                        .join(' ')}
+                        .join(" ")}
                     >
                       {e.position}
                     </span>
@@ -374,48 +676,46 @@ for (const race of races) {
     </section>
   )}
 
-  <!-- INFO RÁPIDA -->
+  <!-- Circuitos y records -->
   <section class="mb-10">
-    <h2 class="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
-      Info rápida de la liga
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
+      Circuitos y records
     </h2>
+    <p class="mb-3 text-[11px] text-slate-400">
+      Mejor fastest lap registrada por pista.
+    </p>
+    <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+      {circuits.map((c) => (
+        <article class="rounded-xl border border-slate-800 bg-[#050515] p-3 text-xs">
+          <p class="text-sm font-semibold text-slate-100">{c.track}</p>
+          {c.record ? (
+            <div class="mt-2 space-y-1 text-[11px] text-slate-300">
+              <p>Tiempo: <span class="font-semibold text-fuchsia-300">{c.record.time}</span></p>
+              <p>Piloto: {c.record.driverName}</p>
+              <p class="text-slate-500">
+                Ronda {c.record.round} / {new Date(c.record.date).toLocaleDateString("es-PY", { day: "2-digit", month: "short", year: "numeric" })}
+              </p>
+            </div>
+          ) : (
+            <p class="mt-2 text-[11px] text-slate-500">Sin record cargado.</p>
+          )}
+        </article>
+      ))}
+    </div>
+  </section>
 
-    <div class="grid gap-3 sm:grid-cols-3">
-      <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
-        <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-          Pilotos registrados
-        </p>
-        <p class="mt-2 text-2xl font-semibold text-slate-50">
-          {totalDrivers}
-        </p>
-        <p class="mt-1 text-[11px] text-slate-500">
-          Diferentes equipos y categorías.
-        </p>
-      </div>
-
-      <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
-        <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-          Fechas disputadas
-        </p>
-        <p class="mt-2 text-2xl font-semibold text-slate-50">
-          {totalRaces}
-        </p>
-        <p class="mt-1 text-[11px] text-slate-500">
-          Entre Super Kart, KCP y Brasil.
-        </p>
-      </div>
-
-      <div class="rounded-xl border border-slate-800 bg-[#050515] px-4 py-3 text-xs">
-        <p class="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-          Vueltas rápidas registradas
-        </p>
-        <p class="mt-2 text-2xl font-semibold text-fuchsia-300">
-          {totalFastestLaps}
-        </p>
-        <p class="mt-1 text-[11px] text-slate-500">
-          Una por fecha
-        </p>
-      </div>
+  <!-- Changelog -->
+  <section class="mb-12">
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
+      Novedades del sitio
+    </h2>
+    <div class="space-y-2 text-xs">
+      {changelog.map((item) => (
+        <div class="flex items-center gap-3 rounded-lg border border-slate-800 bg-[#050515] px-3 py-2">
+          <span class="text-[11px] font-mono text-slate-400">{item.date}</span>
+          <span class="text-slate-100">{item.text}</span>
+        </div>
+      ))}
     </div>
   </section>
 </MainLayout>
